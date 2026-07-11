@@ -1,0 +1,7 @@
+# Editores / SO
+.DS_Store
+Thumbs.db
+*.log
+
+# No subir notas locales
+/notas-privadas/

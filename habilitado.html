@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal Habilitado - AretesApp</title>
+<style>
+  :root { --primary:#00d2ff; --bg:#0f172a; --card:#1e293b; --text:#f8fafc; --success:#10b981; --warn:#FFAB40; --danger:#ef4444; --muted:#94a3b8; }
+  *{box-sizing:border-box}
+  body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);margin:0;padding:16px;display:flex;flex-direction:column;align-items:center;}
+  .container{width:100%;max-width:680px;}
+  h1{color:var(--primary);text-align:center;font-weight:300;margin:10px 0 20px;}
+  .card{background:var(--card);padding:22px;border-radius:15px;border:1px solid rgba(255,255,255,.1);margin-bottom:18px;}
+  label{display:block;margin-bottom:6px;font-size:.82rem;color:var(--muted);}
+  input,select{width:100%;padding:11px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);color:#fff;font-size:.95rem;}
+  .field{margin-bottom:14px;}
+  .btn{padding:13px;border-radius:8px;border:none;background:var(--primary);color:var(--bg);font-weight:bold;cursor:pointer;transition:.2s;font-size:.95rem;}
+  .btn:hover{filter:brightness(1.1)}
+  .btn-block{width:100%;display:block;}
+  .btn-ghost{background:transparent;border:1px solid var(--primary);color:var(--primary);}
+  .btn-sm{padding:7px 12px;font-size:.8rem;}
+  .btn-danger{background:var(--danger);color:#fff;}
+  .hidden{display:none!important}
+  .top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+  .chip{background:rgba(0,210,255,.12);border:1px solid rgba(0,210,255,.3);padding:8px 12px;border-radius:10px;font-size:.8rem;}
+  .chip b{color:var(--primary);font-size:1.05rem;display:block;}
+  .row-prod{display:grid;grid-template-columns:1.4fr 1.6fr .8fr .8fr auto;gap:8px;align-items:end;margin-bottom:10px;}
+  .row-prod .lbl{font-size:.7rem;color:var(--muted);margin-bottom:3px;}
+  .total-box{text-align:center;font-size:1.4rem;font-weight:bold;color:var(--success);margin:12px 0;}
+  table{width:100%;border-collapse:collapse;}
+  th{text-align:left;padding:9px;color:var(--primary);font-size:.72rem;text-transform:uppercase;border-bottom:2px solid rgba(255,255,255,.1);}
+  td{padding:9px;border-bottom:1px solid rgba(255,255,255,.06);font-size:.85rem;vertical-align:top;}
+  .badge{padding:3px 9px;border-radius:20px;font-size:.7rem;font-weight:bold;white-space:nowrap;}
+  .b-pend{background:rgba(255,171,64,.15);color:var(--warn);}
+  .b-pag{background:rgba(0,210,255,.15);color:var(--primary);}
+  .b-ent{background:rgba(16,185,129,.15);color:var(--success);}
+  .mono{font-family:monospace;color:var(--primary);}
+  .msg{text-align:center;padding:10px;border-radius:8px;margin:10px 0;font-size:.9rem;}
+  .msg-ok{background:rgba(16,185,129,.15);color:var(--success);}
+  .msg-err{background:rgba(239,68,68,.15);color:var(--danger);}
+  .tabs{display:flex;gap:8px;margin-bottom:16px;}
+  .tab{flex:1;padding:10px;text-align:center;background:var(--card);border:1px solid rgba(255,255,255,.1);border-radius:8px;cursor:pointer;font-size:.85rem;}
+  .tab.active{background:var(--primary);color:var(--bg);font-weight:bold;}
+  .prod-name{font-size:.72rem;color:var(--success);min-height:14px;margin-top:3px;}
+  small.hint{color:var(--muted);font-size:.72rem;}
+  @media(max-width:560px){.row-prod{grid-template-columns:1fr 1fr;}.row-prod .del-wrap{grid-column:1/3;}}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Portal del Habilitado</h1>
+
+  <!-- ===== LOGIN ===== -->
+  <div id="loginView" class="card">
+    <div class="field">
+      <label>Número de Habilitado (Técnico de campo)</label>
+      <input id="inNumero" placeholder="Ej: 1537" inputmode="numeric">
+    </div>
+    <div class="field">
+      <label>PIN</label>
+      <input id="inPin" type="password" placeholder="PIN" inputmode="numeric">
+    </div>
+    <button class="btn btn-block" onclick="hacerLogin()">ENTRAR</button>
+    <div id="loginMsg"></div>
+    <p style="text-align:center"><small class="hint">Prueba: número <b>1537</b> · PIN <b>1234</b></small></p>
+  </div>
+
+  <!-- ===== APP ===== -->
+  <div id="appView" class="hidden">
+    <div class="top">
+      <div>
+        <div style="font-size:1.05rem;font-weight:bold" id="hNombre"></div>
+        <small class="hint">Habilitado N° <span id="hNumero"></span></small>
+      </div>
+      <div class="chip">Disponible en oficina <b id="hDisponible">—</b></div>
+      <button class="btn btn-ghost btn-sm" onclick="cerrarSesion()">Salir</button>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" id="tabNuevoBtn" onclick="verTab('nuevo')">Nueva Solicitud</div>
+      <div class="tab" id="tabMisBtn" onclick="verTab('mis')">Mis Expedientes</div>
+    </div>
+
+    <!-- NUEVO EXPEDIENTE -->
+    <div id="tabNuevo" class="card">
+      <div class="field">
+        <label>Categoría de entrega</label>
+        <select id="inCategoria">
+          <option value="PRODUCTORES">PRODUCTORES</option>
+          <option value="OPERADORES">OPERADORES</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Fecha de inscripción</label>
+        <input id="inFecha" type="date">
+      </div>
+
+      <label style="margin-bottom:10px">Productores del expediente</label>
+      <div id="prodContainer"></div>
+      <button class="btn btn-ghost btn-sm" onclick="agregarFilaProd()">+ Agregar productor</button>
+
+      <div class="total-box" id="totalBox">Total: C$ 0</div>
+      <button class="btn btn-block" onclick="enviarExpediente()">ENVIAR SOLICITUD</button>
+      <div id="nuevoMsg"></div>
+    </div>
+
+    <!-- MIS EXPEDIENTES -->
+    <div id="tabMis" class="card hidden">
+      <button class="btn btn-ghost btn-sm" onclick="cargarMisExpedientes()" style="margin-bottom:12px">🔄 Actualizar</button>
+      <div id="misExpedientes"></div>
+    </div>
+  </div>
+</div>
+
+<script src="backend.js"></script>
+<script>
+  let habilitadoActual = null;
+  let PRECIO = 0; // se cachea al entrar para calcular el total en vivo
+
+  /* ---------- LOGIN ---------- */
+  async function hacerLogin(){
+    const num = document.getElementById('inNumero').value.trim();
+    const pin = document.getElementById('inPin').value.trim();
+    const msg = document.getElementById('loginMsg');
+    msg.innerHTML = '<div class="msg" style="color:var(--muted)">Conectando...</div>';
+    try {
+      const res = await Backend.login(num, pin);
+      if(res.status !== 'ok'){ msg.innerHTML = '<div class="msg msg-err">'+res.message+'</div>'; return; }
+      habilitadoActual = res.habilitado;
+      const cfg = await Backend.getConfig();
+      PRECIO = cfg.precio;
+      msg.innerHTML = '';
+      document.getElementById('loginView').classList.add('hidden');
+      document.getElementById('appView').classList.remove('hidden');
+      document.getElementById('hNombre').textContent = habilitadoActual.nombre;
+      document.getElementById('hNumero').textContent = habilitadoActual.numero;
+      initNuevo();
+      refrescarDisponible();
+    } catch(e){ msg.innerHTML = '<div class="msg msg-err">Error de conexión. Revisa tu internet.</div>'; }
+  }
+  function cerrarSesion(){ location.reload(); }
+  async function refrescarDisponible(){
+    try { document.getElementById('hDisponible').textContent = await Backend.disponibleLote(); } catch(e){}
+  }
+
+  /* ---------- TABS ---------- */
+  function verTab(t){
+    document.getElementById('tabNuevo').classList.toggle('hidden', t!=='nuevo');
+    document.getElementById('tabMis').classList.toggle('hidden', t!=='mis');
+    document.getElementById('tabNuevoBtn').classList.toggle('active', t==='nuevo');
+    document.getElementById('tabMisBtn').classList.toggle('active', t==='mis');
+    if(t==='mis') cargarMisExpedientes();
+  }
+
+  /* ---------- NUEVO EXPEDIENTE ---------- */
+  function initNuevo(){
+    const hoy = new Date();
+    document.getElementById('inFecha').value =
+      hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0')+'-'+String(hoy.getDate()).padStart(2,'0');
+    document.getElementById('prodContainer').innerHTML='';
+    agregarFilaProd();
+    recalcularTotal();
+  }
+
+  function agregarFilaProd(){
+    const cont = document.getElementById('prodContainer');
+    const div = document.createElement('div');
+    div.className='row-prod';
+    div.innerHTML = `
+      <div>
+        <div class="lbl">CUPA (productor)</div>
+        <input class="p-cupa" placeholder="619...N" onblur="autocompletar(this)">
+        <div class="prod-name"></div>
+      </div>
+      <div>
+        <div class="lbl">Nombre productor</div>
+        <input class="p-nombre" placeholder="Nombre">
+      </div>
+      <div>
+        <div class="lbl">CUE</div>
+        <input class="p-cue" placeholder="558">
+      </div>
+      <div>
+        <div class="lbl">Cantidad</div>
+        <input class="p-cant" type="number" min="1" placeholder="0" oninput="recalcularTotal()">
+      </div>
+      <div class="del-wrap">
+        <button class="btn btn-danger btn-sm" onclick="this.closest('.row-prod').remove();recalcularTotal()">✕</button>
+      </div>`;
+    cont.appendChild(div);
+  }
+
+  async function autocompletar(inp){
+    const row = inp.closest('.row-prod');
+    const prod = await Backend.buscarProductor(inp.value);
+    const nameDiv = row.querySelector('.prod-name');
+    if(prod){
+      row.querySelector('.p-nombre').value = prod.nombre;
+      row.querySelector('.p-cue').value = prod.cue;
+      nameDiv.textContent = '✓ '+prod.nombre;
+    } else {
+      nameDiv.textContent = inp.value ? 'Nuevo productor (completa los datos)' : '';
+      nameDiv.style.color = 'var(--muted)';
+    }
+  }
+
+  function recalcularTotal(){
+    let aretes = 0;
+    document.querySelectorAll('#prodContainer .p-cant').forEach(i=> aretes += Number(i.value)||0 );
+    document.getElementById('totalBox').textContent = 'Total: C$ '+(aretes*PRECIO).toLocaleString()+'  ('+aretes+' aretes)';
+  }
+
+  async function enviarExpediente(){
+    const prods = [];
+    document.querySelectorAll('#prodContainer .row-prod').forEach(row=>{
+      const cupa = row.querySelector('.p-cupa').value.trim();
+      const nombre = row.querySelector('.p-nombre').value.trim();
+      const cue = row.querySelector('.p-cue').value.trim();
+      const cant = Number(row.querySelector('.p-cant').value)||0;
+      if(cant>0) prods.push({cupa,nombre,cue,cantidad:cant});
+    });
+    const msg = document.getElementById('nuevoMsg');
+    if(prods.length===0){ msg.innerHTML='<div class="msg msg-err">Agrega al menos un productor con cantidad.</div>'; return; }
+    msg.innerHTML='<div class="msg" style="color:var(--muted)">Enviando...</div>';
+    try {
+      const res = await Backend.crearExpediente({
+        categoria: document.getElementById('inCategoria').value,
+        fecha: formatoFecha(document.getElementById('inFecha').value),
+        habilitadoNumero: habilitadoActual.numero,
+        habilitadoNombre: habilitadoActual.nombre,
+        productores: prods
+      });
+      if(res.status==='success'){
+        msg.innerHTML='<div class="msg msg-ok">✅ Solicitud enviada. Ahora pasa a caja a pagar y lleva el recibo al digitador.</div>';
+        initNuevo();
+        refrescarDisponible();
+      } else {
+        msg.innerHTML='<div class="msg msg-err">'+res.message+'</div>';
+      }
+    } catch(e){ msg.innerHTML='<div class="msg msg-err">Error de conexión al enviar.</div>'; }
+  }
+
+  function formatoFecha(iso){ if(!iso) return ''; const p=iso.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+
+  /* ---------- MIS EXPEDIENTES ---------- */
+  async function cargarMisExpedientes(){
+    const cont = document.getElementById('misExpedientes');
+    cont.innerHTML='<p style="text-align:center;color:var(--muted)">Cargando...</p>';
+    let lista = [];
+    try { lista = await Backend.getExpedientesDeHabilitado(habilitadoActual.numero); }
+    catch(e){ cont.innerHTML='<p style="text-align:center;color:var(--danger)">Error de conexión.</p>'; return; }
+    if(lista.length===0){ cont.innerHTML='<p style="text-align:center;color:var(--muted)">Aún no tienes expedientes.</p>'; return; }
+    cont.innerHTML = lista.map(e=>{
+      const badge = e.estado==='PENDIENTE_PAGO' ? '<span class="badge b-pend">Pendiente de pago</span>'
+                  : e.estado==='PAGADO' ? '<span class="badge b-pag">Pagado / en proceso</span>'
+                  : '<span class="badge b-ent">Entregado en IPSA</span>';
+      const filas = e.productores.map(p=>`
+        <tr>
+          <td>${p.nombre||'-'}<br><small class="hint mono">${p.cupa||''}</small></td>
+          <td>${p.cantidad}</td>
+          <td>${p.cuiaInicial? '<span class="mono">'+p.cuiaInicial+' – '+p.cuiaFinal+'</span>' : '<small class="hint">por asignar</small>'}</td>
+        </tr>`).join('');
+      return `<div class="card" style="background:rgba(0,0,0,.2);margin-bottom:14px">
+        <div class="top" style="margin-bottom:8px">
+          <div><b>Expediente #${e.id}</b> · ${e.categoria}<br><small class="hint">${e.fecha}${e.recibo? ' · Recibo '+e.recibo:''}</small></div>
+          ${badge}
+        </div>
+        <table><thead><tr><th>Productor</th><th>Cant.</th><th>CUIA asignado</th></tr></thead><tbody>${filas}</tbody></table>
+        <div style="text-align:right;margin-top:8px"><small class="hint">Total: </small><b style="color:var(--success)">C$ ${e.total.toLocaleString()}</b></div>
+      </div>`;
+    }).join('');
+  }
+</script>
+</body>
+</html>

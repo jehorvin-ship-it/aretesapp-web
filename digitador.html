@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel Digitador - AretesApp</title>
+<style>
+  :root { --primary:#00d2ff; --bg:#0f172a; --card:#1e293b; --text:#f8fafc; --success:#10b981; --warn:#FFAB40; --danger:#ef4444; --muted:#94a3b8; }
+  *{box-sizing:border-box}
+  body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);margin:0;padding:16px;display:flex;flex-direction:column;align-items:center;}
+  .container{width:100%;max-width:900px;}
+  h1{color:var(--primary);text-align:center;font-weight:300;margin:8px 0 6px;}
+  .subtitle{text-align:center;color:var(--muted);font-size:.8rem;margin-bottom:20px;}
+  .tabs{display:flex;justify-content:center;gap:8px;margin-bottom:22px;flex-wrap:wrap;}
+  .tab-btn{background:var(--card);border:1px solid rgba(255,255,255,.1);color:#fff;padding:10px 18px;border-radius:8px;cursor:pointer;font-size:.85rem;}
+  .tab-btn.active{background:var(--primary);color:var(--bg);font-weight:bold;}
+  .card{background:var(--card);padding:22px;border-radius:15px;border:1px solid rgba(255,255,255,.1);display:none;}
+  .card.active{display:block;}
+  .field{margin-bottom:16px;max-width:420px;margin-left:auto;margin-right:auto;}
+  label{display:block;margin-bottom:6px;font-size:.82rem;color:var(--muted);}
+  input,select{width:100%;padding:11px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);color:#fff;box-sizing:border-box;}
+  .btn{padding:11px 16px;border-radius:8px;border:none;background:var(--primary);color:var(--bg);font-weight:bold;cursor:pointer;font-size:.9rem;}
+  .btn-block{width:100%;max-width:420px;display:block;margin:10px auto;padding:14px;}
+  .btn-ghost{background:transparent;border:1px solid var(--primary);color:var(--primary);}
+  .btn-sm{padding:7px 12px;font-size:.78rem;}
+  .btn-success{background:var(--success);color:#fff;}
+  .search-box{display:flex;gap:10px;margin-bottom:18px;justify-content:center;flex-wrap:wrap;}
+  .search-box input{max-width:230px;}
+  table{width:100%;border-collapse:collapse;margin-top:6px;}
+  th{text-align:left;padding:11px;color:var(--primary);border-bottom:2px solid rgba(255,255,255,.1);font-size:.72rem;text-transform:uppercase;}
+  td{padding:11px;border-bottom:1px solid rgba(255,255,255,.06);font-size:.86rem;vertical-align:middle;}
+  .badge{padding:3px 9px;border-radius:20px;font-size:.7rem;font-weight:bold;white-space:nowrap;}
+  .b-pag{background:rgba(0,210,255,.15);color:var(--primary);}
+  .b-ent{background:rgba(16,185,129,.15);color:var(--success);}
+  .mono{font-family:monospace;color:var(--primary);}
+  .msg{text-align:center;padding:10px;border-radius:8px;margin:12px auto;font-size:.9rem;max-width:520px;}
+  .msg-ok{background:rgba(16,185,129,.15);color:var(--success);}
+  .msg-err{background:rgba(239,68,68,.15);color:var(--danger);}
+  .chip{display:inline-block;background:rgba(0,210,255,.1);border:1px solid rgba(0,210,255,.3);padding:8px 14px;border-radius:10px;font-size:.8rem;margin-bottom:14px;}
+  .chip b{color:var(--primary);}
+  /* Ficha IPSA */
+  .exp-block{background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:16px;margin-bottom:18px;}
+  .exp-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+  .ipsa-card{background:var(--card);border:1px solid rgba(0,210,255,.25);border-radius:10px;padding:14px;margin-bottom:12px;}
+  .ipsa-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px;}
+  .ipsa-item{background:rgba(0,0,0,.25);border-left:3px solid var(--primary);border-radius:6px;padding:8px 10px;position:relative;}
+  .ipsa-item .k{font-size:.66rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;}
+  .ipsa-item .v{font-weight:bold;font-family:monospace;font-size:1rem;color:#fff;word-break:break-all;padding-right:22px;}
+  .copy{position:absolute;top:6px;right:6px;background:transparent;border:none;color:var(--primary);cursor:pointer;font-size:.85rem;}
+  .done-row{display:flex;align-items:center;gap:8px;font-size:.85rem;}
+  .pend-row td{background:rgba(255,171,64,.04);}
+  small.hint{color:var(--muted);font-size:.75rem;}
+  input[type=checkbox]{width:auto;transform:scale(1.2);}
+  tr.clickable{cursor:pointer;}
+  tr.clickable:hover td{background:rgba(0,210,255,.06);}
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;justify-content:center;align-items:center;z-index:1000;padding:16px;}
+  .modal-overlay.show{display:flex;}
+  .modal-content{background:var(--card);padding:26px;border-radius:15px;width:100%;max-width:640px;max-height:88vh;overflow-y:auto;border:1px solid var(--primary);}
+  .modal-content h2{color:var(--primary);margin-top:0;font-size:1.15rem;text-align:center;}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Panel del Digitador</h1>
+  <div class="subtitle">Operadora – Alcaldía El Tortuguero · Licencia IPSA</div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('pendientes',this)">Pendientes de Aprobar</button>
+    <button class="tab-btn" onclick="switchTab('entrega',this)">Entrega IPSA</button>
+    <button class="tab-btn" onclick="switchTab('historial',this)">Historial</button>
+    <button class="tab-btn" onclick="switchTab('config',this)">Configuración</button>
+  </div>
+
+  <!-- PENDIENTES -->
+  <div id="tab-pendientes" class="card active">
+    <div style="text-align:center">
+      <span class="chip">Disponible en lote: <b id="dispPend">—</b> aretes</span>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="cargarPendientes()" style="margin-bottom:14px">🔄 Sincronizar</button>
+    <div id="pendMsg"></div>
+    <div id="listaPendientes"></div>
+  </div>
+
+  <!-- ENTREGA IPSA -->
+  <div id="tab-entrega" class="card">
+    <p style="text-align:center;color:var(--muted);font-size:.82rem;margin-top:0">
+      Copia estos datos al formulario de <b>Entrega de Dispositivos</b> del IPSA, productor por productor. Marca cada uno cuando lo entregues.
+    </p>
+    <button class="btn btn-ghost btn-sm" onclick="cargarEntrega()" style="margin-bottom:14px">🔄 Actualizar</button>
+    <div id="listaEntrega"></div>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div id="tab-historial" class="card">
+    <div class="search-box">
+      <input id="busqNombre" placeholder="Habilitado..." onkeyup="renderHistorial()">
+      <input id="busqProductor" placeholder="Productor (nombre o CUPA)..." onkeyup="renderHistorial()">
+      <input id="busqRecibo" placeholder="N° Recibo..." onkeyup="renderHistorial()">
+      <input id="busqFecha" type="date" onchange="renderHistorial()">
+      <button class="btn btn-ghost btn-sm" onclick="cargarHistorial()">🔄</button>
+    </div>
+    <p style="text-align:center;color:var(--muted);font-size:.78rem;margin-top:0">Toca un registro para ver todos los productores de esa entrega.</p>
+    <table>
+      <thead><tr><th>Exp.</th><th>Fecha</th><th>Habilitado</th><th>Recibo</th><th>Prod.</th><th>Aretes</th><th>Estado</th></tr></thead>
+      <tbody id="tablaHistorial"><tr><td colspan="7" style="text-align:center">Cargando...</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- MODAL DETALLE EXPEDIENTE -->
+  <div id="modalDetalle" class="modal-overlay" onclick="if(event.target===this)cerrarModal()">
+    <div class="modal-content">
+      <h2 id="modalTitulo">Detalle</h2>
+      <div id="modalBody"></div>
+      <button class="btn btn-block" style="background:var(--danger);color:#fff;max-width:none" onclick="cerrarModal()">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- CONFIG -->
+  <div id="tab-config" class="card">
+    <div style="text-align:center"><span class="chip">Disponible actual: <b id="dispConfig">—</b> aretes</span></div>
+    <div class="field"><label>Precio por arete (C$)</label><input id="cfgPrecio" type="number"></div>
+    <div class="field"><label>CUIA siguiente disponible (inicio del lote)</label><input id="cfgInicio" type="number"></div>
+    <div class="field"><label>CUIA final del lote</label><input id="cfgFin" type="number"></div>
+    <button class="btn btn-block" onclick="guardarConfig()">GUARDAR CONFIGURACIÓN</button>
+    <div id="cfgMsg"></div>
+  </div>
+</div>
+
+<script src="backend.js"></script>
+<script>
+  function switchTab(tab,btn){
+    document.querySelectorAll('.card').forEach(c=>c.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById('tab-'+tab).classList.add('active');
+    btn.classList.add('active');
+    if(tab==='pendientes') cargarPendientes();
+    if(tab==='entrega') cargarEntrega();
+    if(tab==='historial') cargarHistorial();
+    if(tab==='config') cargarConfig();
+  }
+
+  const TIPO_DOC = "Recibo - Operadoras";
+
+  /* ---------- PENDIENTES ---------- */
+  async function cargarPendientes(){
+    const cont = document.getElementById('listaPendientes');
+    cont.innerHTML='<p style="text-align:center;color:var(--muted)">Cargando...</p>';
+    let lista = [];
+    try {
+      document.getElementById('dispPend').textContent = await Backend.disponibleLote();
+      lista = await Backend.getPendientes();
+    } catch(e){ cont.innerHTML='<p style="text-align:center;color:var(--danger)">Error de conexión.</p>'; return; }
+    if(lista.length===0){ cont.innerHTML='<p style="text-align:center;color:var(--muted)">No hay expedientes pendientes.</p>'; return; }
+    cont.innerHTML = lista.map(e=>{
+      const filas = e.productores.map(p=>`
+        <tr><td>${p.nombre||'-'}<br><small class="hint mono">${p.cupa||''}</small></td>
+        <td>${p.cue||'-'}</td><td>${p.cantidad}</td></tr>`).join('');
+      return `<div class="exp-block">
+        <div class="exp-head">
+          <div><b>Expediente #${e.id}</b> · ${e.categoria}<br>
+            <small class="hint">${e.fecha} · Habilitado ${e.habilitadoNumero} — ${e.habilitadoNombre}</small></div>
+          <div style="text-align:right"><b style="color:var(--success)">C$ ${e.total.toLocaleString()}</b><br><small class="hint">${e.totalAretes} aretes</small></div>
+        </div>
+        <table><thead><tr><th>Productor</th><th>CUE</th><th>Cant.</th></tr></thead><tbody>${filas}</tbody></table>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px">
+          <input id="recibo-${e.id}" placeholder="N° Recibo (DOCUMENTO)" style="max-width:200px">
+          <label class="done-row" style="margin:0"><input type="checkbox" id="pago-${e.id}" checked> Control de pago</label>
+          <button class="btn btn-success btn-sm" onclick="aprobar(${e.id})">Aprobar y asignar CUIA</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function aprobar(id){
+    const recibo = document.getElementById('recibo-'+id).value.trim();
+    const pago = document.getElementById('pago-'+id).checked;
+    const msg = document.getElementById('pendMsg');
+    if(!recibo){ msg.innerHTML='<div class="msg msg-err">Falta el número de recibo del expediente #'+id+'.</div>'; return; }
+    msg.innerHTML='<div class="msg" style="color:var(--muted)">Procesando...</div>';
+    try {
+      const res = await Backend.aprobarExpediente(id, recibo, pago);
+      if(res.status==='success'){
+        msg.innerHTML='<div class="msg msg-ok">✅ Expediente #'+id+' aprobado. Ya tiene los CUIA asignados (ve a "Entrega IPSA").</div>';
+        cargarPendientes();
+      } else {
+        msg.innerHTML='<div class="msg msg-err">'+res.message+'</div>';
+      }
+    } catch(e){ msg.innerHTML='<div class="msg msg-err">Error de conexión al aprobar.</div>'; }
+  }
+
+  /* ---------- ENTREGA IPSA ---------- */
+  async function cargarEntrega(){
+    const cont = document.getElementById('listaEntrega');
+    cont.innerHTML='<p style="text-align:center;color:var(--muted)">Cargando...</p>';
+    let lista = [];
+    try { lista = (await Backend.getConfirmados()).filter(e=>e.productores.some(p=>!p.entregado)); }
+    catch(e){ cont.innerHTML='<p style="text-align:center;color:var(--danger)">Error de conexión.</p>'; return; }
+    if(lista.length===0){ cont.innerHTML='<p style="text-align:center;color:var(--muted)">No hay entregas pendientes en el IPSA.</p>'; return; }
+    cont.innerHTML = lista.map(e=>{
+      const fichas = e.productores.map((p,idx)=>{
+        if(p.entregado) return '';
+        return `<div class="ipsa-card">
+          <div class="ipsa-grid">
+            ${item('Documento (Recibo)',e.recibo)}
+            ${item('CUPA (productor)',p.cupa)}
+            ${item('Técnico / Habilitado',e.habilitadoNumero)}
+            ${item('CUE',p.cue)}
+            ${item('CUIA inicial',p.cuiaInicial)}
+            ${item('CUIA final',p.cuiaFinal)}
+            ${item('Cantidad',p.cantidad)}
+          </div>
+          <div class="done-row">
+            <small class="hint" style="flex:1">${p.nombre||''}</small>
+            <label class="done-row"><input type="checkbox" onchange="marcarEntregado(${e.id},${idx},this.checked)"> Entregado en IPSA</label>
+          </div>
+        </div>`;
+      }).join('');
+      return `<div class="exp-block">
+        <div class="exp-head"><div><b>Expediente #${e.id}</b> · Recibo ${e.recibo}<br>
+          <small class="hint">${e.categoria} · ${e.fecha} · Habilitado ${e.habilitadoNumero} — ${e.habilitadoNombre}</small></div></div>
+        ${fichas}
+      </div>`;
+    }).join('');
+  }
+
+  function item(k,v){
+    const val = (v===null||v===undefined||v==='')?'—':v;
+    return `<div class="ipsa-item"><div class="k">${k}</div><div class="v" id="v_${Math.random().toString(36).slice(2)}">${val}</div>
+      <button class="copy" onclick="copiar(this)" title="Copiar">⧉</button></div>`;
+  }
+  function copiar(btn){
+    const v = btn.parentElement.querySelector('.v').textContent;
+    navigator.clipboard.writeText(v).then(()=>{ btn.textContent='✓'; setTimeout(()=>btn.textContent='⧉',900); });
+  }
+  async function marcarEntregado(id,idx,val){
+    try { await Backend.marcarProductorEntregado(id,idx,val); } catch(e){ alert('Error de conexión'); }
+    cargarEntrega();
+  }
+
+  /* ---------- HISTORIAL ---------- */
+  let cacheHist = [];
+  async function cargarHistorial(){
+    const tb = document.getElementById('tablaHistorial');
+    tb.innerHTML='<tr><td colspan="7" style="text-align:center">Cargando...</td></tr>';
+    try { cacheHist = await Backend.getConfirmados(); }
+    catch(e){ tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--danger)">Error de conexión.</td></tr>'; return; }
+    renderHistorial();
+  }
+  function renderHistorial(){
+    const n = document.getElementById('busqNombre').value.toLowerCase();
+    const prod = document.getElementById('busqProductor').value.toLowerCase();
+    const r = document.getElementById('busqRecibo').value.toLowerCase();
+    const f = document.getElementById('busqFecha').value;
+    const fISO = f ? f.split('-').reverse().join('/') : '';
+    const rows = cacheHist.filter(e=>
+      (e.habilitadoNombre||'').toLowerCase().includes(n) &&
+      (e.recibo||'').toLowerCase().includes(r) &&
+      (!fISO || e.fecha===fISO) &&
+      (!prod || e.productores.some(p=>
+        (p.nombre||'').toLowerCase().includes(prod) || (p.cupa||'').toLowerCase().includes(prod)))
+    );
+    const tb = document.getElementById('tablaHistorial');
+    if(rows.length===0){ tb.innerHTML='<tr><td colspan="7" style="text-align:center">Sin registros.</td></tr>'; return; }
+    tb.innerHTML = rows.map(e=>{
+      const badge = e.estado==='ENTREGADO'?'<span class="badge b-ent">Entregado</span>':'<span class="badge b-pag">Pagado</span>';
+      return `<tr class="clickable" onclick="abrirDetalle(${e.id})"><td>#${e.id}</td><td>${e.fecha}</td>
+        <td>${e.habilitadoNombre}<br><small class="hint">N° ${e.habilitadoNumero}</small></td>
+        <td>${e.recibo}</td><td>${e.productores.length}</td><td>${e.totalAretes}</td><td>${badge}</td></tr>`;
+    }).join('');
+  }
+
+  function abrirDetalle(id){
+    const e = cacheHist.find(x=>x.id===id);
+    if(!e) return;
+    document.getElementById('modalTitulo').textContent = 'Expediente #'+e.id+' · Recibo '+e.recibo;
+    const filas = e.productores.map(p=>`
+      <tr>
+        <td>${p.nombre||'-'}<br><small class="hint mono">${p.cupa||''}</small></td>
+        <td>${p.cue||'-'}</td>
+        <td>${p.cantidad}</td>
+        <td class="mono">${p.cuiaInicial? p.cuiaInicial+'–'+p.cuiaFinal : '—'}</td>
+        <td>${p.entregado?'<span class="badge b-ent">Sí</span>':'<span class="badge b-pag">No</span>'}</td>
+      </tr>`).join('');
+    document.getElementById('modalBody').innerHTML = `
+      <p style="color:var(--muted);font-size:.82rem;text-align:center;margin-top:0">
+        ${e.categoria} · ${e.fecha} · Habilitado ${e.habilitadoNumero} — ${e.habilitadoNombre}</p>
+      <table><thead><tr><th>Productor</th><th>CUE</th><th>Cant.</th><th>CUIA</th><th>Entregado</th></tr></thead>
+        <tbody>${filas}</tbody></table>
+      <div style="text-align:right;margin-top:10px"><small class="hint">Total: </small><b style="color:var(--success)">C$ ${e.total.toLocaleString()}</b></div>`;
+    document.getElementById('modalDetalle').classList.add('show');
+  }
+  function cerrarModal(){ document.getElementById('modalDetalle').classList.remove('show'); }
+
+  /* ---------- CONFIG ---------- */
+  async function cargarConfig(){
+    try {
+      const c = await Backend.getConfig();
+      document.getElementById('cfgPrecio').value = c.precio;
+      document.getElementById('cfgInicio').value = c.cuiaSiguiente;
+      document.getElementById('cfgFin').value = c.cuiaFinLote;
+      document.getElementById('dispConfig').textContent = c.disponible;
+    } catch(e){ document.getElementById('cfgMsg').innerHTML='<div class="msg msg-err">Error de conexión.</div>'; }
+  }
+  async function guardarConfig(){
+    const msg = document.getElementById('cfgMsg');
+    msg.innerHTML='<div class="msg" style="color:var(--muted)">Guardando...</div>';
+    try {
+      const res = await Backend.saveConfig({
+        precio: document.getElementById('cfgPrecio').value,
+        cuiaSiguiente: document.getElementById('cfgInicio').value,
+        cuiaFinLote: document.getElementById('cfgFin').value
+      });
+      msg.innerHTML = res.status==='success'
+        ? '<div class="msg msg-ok">✅ Configuración guardada.</div>'
+        : '<div class="msg msg-err">Error al guardar.</div>';
+      cargarConfig();
+    } catch(e){ msg.innerHTML='<div class="msg msg-err">Error de conexión al guardar.</div>'; }
+  }
+
+  /* init */
+  cargarPendientes();
+</script>
+</body>
+</html>

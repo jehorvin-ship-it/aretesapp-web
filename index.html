@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AretesApp</title>
+<style>
+  :root{--primary:#00d2ff;--bg:#0f172a;--card:#1e293b;--text:#f8fafc;}
+  body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);margin:0;min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px;}
+  h1{color:var(--primary);font-weight:300;margin-bottom:6px;text-align:center;}
+  p.sub{color:#94a3b8;margin-top:0;text-align:center;font-size:.9rem;}
+  .grid{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;margin-top:30px;}
+  a.card{background:var(--card);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:30px 26px;width:230px;text-decoration:none;color:var(--text);text-align:center;transition:.2s;}
+  a.card:hover{border-color:var(--primary);transform:translateY(-3px);}
+  a.card .ico{font-size:2.4rem;}
+  a.card h2{color:var(--primary);font-size:1.15rem;margin:12px 0 6px;}
+  a.card span{font-size:.82rem;color:#94a3b8;}
+</style>
+</head>
+<body>
+  <h1>AretesApp</h1>
+  <p class="sub">Control de entrega y trazabilidad de aretes · Operadora El Tortuguero</p>
+  <div class="grid">
+    <a class="card" href="habilitado.html">
+      <div class="ico">📱</div>
+      <h2>Portal del Habilitado</h2>
+      <span>Crear expedientes y ver mis entregas</span>
+    </a>
+    <a class="card" href="digitador.html">
+      <div class="ico">💻</div>
+      <h2>Panel del Digitador</h2>
+      <span>Aprobar pedidos y datos para el IPSA</span>
+    </a>
+  </div>
+</body>
+</html>
