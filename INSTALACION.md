@@ -45,16 +45,22 @@ Arquitectura:
 
 ## PARTE B — Conectar el frontend
 
-1. Abre `backend.js` y pega tu URL en la línea:
+1. Abre **`config.js`** (el ÚNICO archivo de configuración) y pega tu URL:
 
    ```js
-   const SCRIPT_URL = "https://script.google.com/macros/s/XXXXXXXX/exec";
+   window.SCRIPT_URL = "https://script.google.com/macros/s/XXXXXXXX/exec";
    ```
 
    - Con URL puesta → modo **REMOTO** (Google Sheets, datos compartidos de verdad).
    - Vacía `""` → modo **LOCAL** (localStorage, para pruebas).
 
-2. Prueba local rápida: abre `digitador.html`; en la consola (F12) debe decir `Backend en modo: REMOTO (Google Sheets)` y cargar sin errores.
+2. La propia app te dice en qué modo está: el login del habilitado muestra un aviso amarillo
+   "⚠️ Modo de prueba local" si falta la URL, y el panel del digitador muestra
+   "● Conectado a Google Sheets" cuando está en remoto.
+
+> **MUY IMPORTANTE:** cuando recibas archivos actualizados de la app (zip), sube todos
+> MENOS `config.js` (o vuelve a poner tu URL después). Así tu conexión nunca se pierde.
+> `backend.js` ya no contiene la URL, puedes actualizarlo sin miedo.
 
 ---
 
@@ -67,6 +73,7 @@ Arquitectura:
    index.html
    habilitado.html
    digitador.html
+   config.js        (⚠ tu URL vive aquí — no lo sobrescribas al actualizar)
    backend.js
    manifest.json
    icon-192.png
@@ -110,6 +117,11 @@ Estados de un expediente: `PENDIENTE_PAGO` → `PAGADO` (recibo + CUIA asignados
 ---
 
 ## Solución de problemas
+
+- **"Número o PIN incorrecto" después de actualizar archivos:** casi siempre significa que la app
+  quedó en modo LOCAL (se subió un `config.js`/`backend.js` sin la URL). Míralo en el login:
+  si aparece el aviso amarillo "Modo de prueba local", pega tu URL en `config.js` y vuelve a subirlo.
+  También verifica que el PIN escrito coincida EXACTAMENTE con la columna `pin` de la hoja `Habilitados`.
 
 - **"Cuenta pendiente de aprobación" al entrar:** la columna `estado` del habilitado está en blanco o dice algo distinto de `ACTIVO`. Ejecuta `configurarOperadora()` o pon `ACTIVO` a mano. (La versión nueva del `Code.gs` ya no bloquea por estado en blanco — recuerda **redesplegar** después de pegar el código actualizado: *Implementar → Gestionar implementaciones → editar ✏ → Nueva versión*.)
 - **Totales en C$ 0:** la hoja `Config` está vacía. Ejecuta `configurarOperadora()` (rellena precio y lote por defecto) o escribe los valores en la fila 2.

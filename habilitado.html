@@ -193,6 +193,7 @@
     </div>
     <button class="btn-primary" id="btnLogin" onclick="hacerLogin()">ENTRAR</button>
     <div id="loginMsg"></div>
+    <div id="modoBadge"></div>
     <p class="hint-login">Si no puedes entrar, contacta al digitador.</p>
   </div>
 </div>
@@ -256,6 +257,7 @@
   </nav>
 </div>
 
+<script src="config.js"></script>
 <script src="backend.js"></script>
 <script>
   /* ---- Bloqueo de zoom ----
@@ -276,6 +278,12 @@
   }
   chequearVistaEscritorio();
   window.addEventListener('resize', chequearVistaEscritorio);
+
+  /* ---- Aviso si la app está en modo local (config.js sin URL) ---- */
+  if (Backend.MODO.indexOf('LOCAL') === 0) {
+    document.getElementById('modoBadge').innerHTML =
+      '<div class="msg" style="background:rgba(245,158,11,.12);color:#fcd34d;border:1px solid rgba(245,158,11,.3)">⚠️ Modo de prueba local — sin conexión a la base de datos real.<br><small style="font-weight:400">Falta la URL del Apps Script en <b>config.js</b></small></div>';
+  }
 
   let habilitadoActual = null;
   let PRECIO = 0;

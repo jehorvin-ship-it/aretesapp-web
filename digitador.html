@@ -70,6 +70,7 @@
 <div class="container">
   <h1>Panel del Digitador</h1>
   <div class="subtitle">Operadora – Alcaldía El Tortuguero · Licencia IPSA</div>
+  <div id="modoInfo" style="text-align:center;margin:-10px 0 16px;font-size:.78rem;"></div>
 
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('pendientes',this)">Pendientes de Aprobar</button>
@@ -133,11 +134,17 @@
   </div>
 </div>
 
+<script src="config.js"></script>
 <script src="backend.js"></script>
 <script>
   /* ---- Bloqueo de zoom (viewport + touch-action lo hacen; gesture* refuerza iOS) ---- */
   document.addEventListener('gesturestart', e=>e.preventDefault());
   document.addEventListener('gesturechange', e=>e.preventDefault());
+
+  /* ---- Indicador de modo de conexión ---- */
+  document.getElementById('modoInfo').innerHTML = Backend.MODO.indexOf('LOCAL')===0
+    ? '<span style="color:#fcd34d">⚠️ Modo de prueba local — configura la URL del Apps Script en <b>config.js</b></span>'
+    : '<span style="color:#10b981">● Conectado a Google Sheets</span>';
 
   function switchTab(tab,btn){
     document.querySelectorAll('.card').forEach(c=>c.classList.remove('active'));
