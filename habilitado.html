@@ -2,271 +2,384 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AretesApp">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Portal Habilitado - AretesApp</title>
 <style>
-  :root { --primary:#00d2ff; --bg:#0f172a; --card:#1e293b; --text:#f8fafc; --success:#10b981; --warn:#FFAB40; --danger:#ef4444; --muted:#94a3b8; }
-  *{box-sizing:border-box}
-  body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);margin:0;padding:16px;display:flex;flex-direction:column;align-items:center;}
-  .container{width:100%;max-width:680px;}
-  h1{color:var(--primary);text-align:center;font-weight:300;margin:10px 0 20px;}
-  .card{background:var(--card);padding:22px;border-radius:15px;border:1px solid rgba(255,255,255,.1);margin-bottom:18px;}
-  label{display:block;margin-bottom:6px;font-size:.82rem;color:var(--muted);}
-  input,select{width:100%;padding:11px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);color:#fff;font-size:.95rem;}
-  .field{margin-bottom:14px;}
-  .btn{padding:13px;border-radius:8px;border:none;background:var(--primary);color:var(--bg);font-weight:bold;cursor:pointer;transition:.2s;font-size:.95rem;}
-  .btn:hover{filter:brightness(1.1)}
-  .btn-block{width:100%;display:block;}
-  .btn-ghost{background:transparent;border:1px solid var(--primary);color:var(--primary);}
-  .btn-sm{padding:7px 12px;font-size:.8rem;}
-  .btn-danger{background:var(--danger);color:#fff;}
-  .hidden{display:none!important}
-  .top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
-  .chip{background:rgba(0,210,255,.12);border:1px solid rgba(0,210,255,.3);padding:8px 12px;border-radius:10px;font-size:.8rem;}
-  .chip b{color:var(--primary);font-size:1.05rem;display:block;}
-  .row-prod{display:grid;grid-template-columns:1.4fr 1.6fr .8fr .8fr auto;gap:8px;align-items:end;margin-bottom:10px;}
-  .row-prod .lbl{font-size:.7rem;color:var(--muted);margin-bottom:3px;}
-  .total-box{text-align:center;font-size:1.4rem;font-weight:bold;color:var(--success);margin:12px 0;}
-  table{width:100%;border-collapse:collapse;}
-  th{text-align:left;padding:9px;color:var(--primary);font-size:.72rem;text-transform:uppercase;border-bottom:2px solid rgba(255,255,255,.1);}
-  td{padding:9px;border-bottom:1px solid rgba(255,255,255,.06);font-size:.85rem;vertical-align:top;}
-  .badge{padding:3px 9px;border-radius:20px;font-size:.7rem;font-weight:bold;white-space:nowrap;}
-  .b-pend{background:rgba(255,171,64,.15);color:var(--warn);}
-  .b-pag{background:rgba(0,210,255,.15);color:var(--primary);}
-  .b-ent{background:rgba(16,185,129,.15);color:var(--success);}
-  .mono{font-family:monospace;color:var(--primary);}
-  .msg{text-align:center;padding:10px;border-radius:8px;margin:10px 0;font-size:.9rem;}
-  .msg-ok{background:rgba(16,185,129,.15);color:var(--success);}
-  .msg-err{background:rgba(239,68,68,.15);color:var(--danger);}
-  .tabs{display:flex;gap:8px;margin-bottom:16px;}
-  .tab{flex:1;padding:10px;text-align:center;background:var(--card);border:1px solid rgba(255,255,255,.1);border-radius:8px;cursor:pointer;font-size:.85rem;}
-  .tab.active{background:var(--primary);color:var(--bg);font-weight:bold;}
-  .prod-name{font-size:.72rem;color:var(--success);min-height:14px;margin-top:3px;}
-  small.hint{color:var(--muted);font-size:.72rem;}
-  @media(max-width:560px){.row-prod{grid-template-columns:1fr 1fr;}.row-prod .del-wrap{grid-column:1/3;}}
+  :root{
+    --primary:#00d2ff; --primary-d:#0891b2;
+    --bg:#0b1120; --bg2:#0f172a; --card:#1a2436; --card2:#212d43;
+    --text:#f1f5f9; --muted:#94a3b8; --line:rgba(255,255,255,.08);
+    --success:#10b981; --warn:#f59e0b; --danger:#ef4444;
+    --safe-b:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);
+       font-size:16px;line-height:1.4;-webkit-font-smoothing:antialiased;}
+  input,select,button{font-family:inherit;font-size:16px;}
+  .hidden{display:none!important;}
+  .muted{color:var(--muted);}
+
+  /* ====== LOGIN ====== */
+  #loginView{min-height:100dvh;display:flex;flex-direction:column;justify-content:center;padding:28px 22px;
+             padding-bottom:calc(28px + var(--safe-b));}
+  .logo-wrap{text-align:center;margin-bottom:26px;}
+  .logo-badge{width:78px;height:78px;border-radius:22px;background:linear-gradient(145deg,#12213a,#0b1120);
+              border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px;
+              box-shadow:0 8px 30px rgba(0,0,0,.4);}
+  .logo-badge span{font-size:34px;}
+  .logo-wrap h1{color:var(--primary);font-weight:600;font-size:1.4rem;margin:0;}
+  .logo-wrap p{color:var(--muted);font-size:.85rem;margin:4px 0 0;}
+  .login-card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px;}
+  .lbl{display:block;font-size:.8rem;color:var(--muted);margin:0 0 7px 3px;font-weight:500;}
+  .inp{width:100%;padding:15px 16px;border-radius:14px;border:1px solid var(--line);background:var(--bg2);
+       color:#fff;transition:border .15s;}
+  .inp:focus{outline:none;border-color:var(--primary);}
+  .field{margin-bottom:16px;}
+  .btn-primary{width:100%;padding:16px;border-radius:14px;border:none;font-weight:700;font-size:1rem;
+       background:linear-gradient(135deg,var(--primary),var(--primary-d));color:#04222b;cursor:pointer;
+       transition:transform .08s,filter .15s;}
+  .btn-primary:active{transform:scale(.98);}
+  .btn-primary:disabled{opacity:.6;}
+  .hint-login{text-align:center;color:var(--muted);font-size:.78rem;margin-top:16px;}
+
+  /* ====== APP SHELL ====== */
+  #appView{min-height:100dvh;display:flex;flex-direction:column;}
+  .appbar{position:sticky;top:0;z-index:20;background:rgba(11,17,32,.92);backdrop-filter:blur(10px);
+          border-bottom:1px solid var(--line);padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 12px;
+          display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .appbar .who{min-width:0;}
+  .appbar .who b{display:block;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:56vw;}
+  .appbar .who small{color:var(--muted);font-size:.72rem;}
+  .disp-chip{display:flex;flex-direction:column;align-items:flex-end;}
+  .disp-chip b{color:var(--primary);font-size:1.1rem;line-height:1;}
+  .disp-chip small{color:var(--muted);font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;}
+  .icon-btn{background:var(--card);border:1px solid var(--line);color:var(--muted);width:38px;height:38px;
+            border-radius:11px;cursor:pointer;font-size:1rem;flex:none;}
+
+  main{flex:1;padding:16px 16px 96px;max-width:640px;width:100%;margin:0 auto;}
+
+  /* segmented / cards */
+  h2.sec{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:4px 3px 12px;font-weight:600;}
+  .seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:5px;gap:5px;margin-bottom:18px;}
+  .seg button{flex:1;padding:12px;border:none;background:transparent;color:var(--muted);border-radius:10px;font-weight:600;
+              font-size:.9rem;cursor:pointer;transition:.15s;}
+  .seg button.on{background:linear-gradient(135deg,var(--primary),var(--primary-d));color:#04222b;}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px;}
+  .field-lbl{font-size:.72rem;color:var(--muted);margin:0 0 6px 2px;text-transform:uppercase;letter-spacing:.03em;}
+
+  /* productor card */
+  .prod{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;position:relative;}
+  .prod .phead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .prod .pnum{font-size:.78rem;color:var(--primary);font-weight:700;}
+  .trash{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#fca5a5;width:34px;height:34px;
+         border-radius:10px;cursor:pointer;font-size:.9rem;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .grid2 .full{grid-column:1/3;}
+  .inp-sm{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg2);color:#fff;}
+  .inp-sm:focus{outline:none;border-color:var(--primary);}
+  .lookup{font-size:.74rem;min-height:16px;margin:6px 2px 0;}
+  .lookup.ok{color:var(--success);} .lookup.new{color:var(--warn);}
+  .subtotal{text-align:right;font-size:.8rem;color:var(--muted);margin-top:8px;}
+  .subtotal b{color:var(--text);}
+
+  .btn-add{width:100%;padding:14px;border:1.5px dashed rgba(0,210,255,.4);background:rgba(0,210,255,.05);
+           color:var(--primary);border-radius:14px;font-weight:600;cursor:pointer;margin-bottom:18px;}
+  .btn-add:active{background:rgba(0,210,255,.12);}
+
+  .total-card{background:linear-gradient(135deg,rgba(0,210,255,.12),rgba(0,210,255,.03));
+              border:1px solid rgba(0,210,255,.25);border-radius:16px;padding:16px;margin-bottom:14px;
+              display:flex;justify-content:space-between;align-items:center;}
+  .total-card .t-l small{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.03em;}
+  .total-card .t-l b{display:block;font-size:1.5rem;color:var(--primary);}
+  .total-card .t-r{text-align:right;color:var(--muted);font-size:.82rem;}
+
+  .msg{padding:12px 14px;border-radius:12px;margin:12px 0;font-size:.88rem;text-align:center;}
+  .msg-ok{background:rgba(16,185,129,.13);color:#6ee7b7;border:1px solid rgba(16,185,129,.25);}
+  .msg-err{background:rgba(239,68,68,.13);color:#fca5a5;border:1px solid rgba(239,68,68,.25);}
+  .msg-load{background:var(--card);color:var(--muted);}
+
+  /* mis expedientes */
+  .exp{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:15px;margin-bottom:13px;}
+  .exp .ehead{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:12px;}
+  .exp .ehead b{font-size:.98rem;}
+  .exp .ehead small{color:var(--muted);font-size:.74rem;}
+  .pill{padding:5px 11px;border-radius:20px;font-size:.68rem;font-weight:700;white-space:nowrap;}
+  .pill-pend{background:rgba(245,158,11,.15);color:#fcd34d;}
+  .pill-pag{background:rgba(0,210,255,.15);color:var(--primary);}
+  .pill-ent{background:rgba(16,185,129,.15);color:#6ee7b7;}
+  .pline{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--line);}
+  .pline:first-of-type{border-top:none;}
+  .pline .pl-l{min-width:0;}
+  .pline .pl-l .nm{font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pline .pl-l .cp{font-size:.7rem;color:var(--muted);font-family:monospace;}
+  .pline .pl-r{text-align:right;flex:none;}
+  .pline .pl-r .qt{font-size:.86rem;}
+  .pline .pl-r .cu{font-size:.72rem;color:var(--primary);font-family:monospace;}
+  .exp .efoot{display:flex;justify-content:flex-end;gap:6px;align-items:baseline;margin-top:11px;padding-top:11px;border-top:1px solid var(--line);}
+  .exp .efoot b{color:var(--success);font-size:1.05rem;}
+  .empty{text-align:center;color:var(--muted);padding:40px 20px;}
+  .empty .em-ico{font-size:2.2rem;opacity:.5;}
+
+  /* bottom nav */
+  .bottomnav{position:fixed;bottom:0;left:0;right:0;z-index:30;background:rgba(11,17,32,.95);backdrop-filter:blur(12px);
+             border-top:1px solid var(--line);display:flex;padding-bottom:var(--safe-b);}
+  .bottomnav button{flex:1;background:none;border:none;color:var(--muted);padding:11px 4px;cursor:pointer;
+                    display:flex;flex-direction:column;align-items:center;gap:3px;font-size:.68rem;font-weight:600;}
+  .bottomnav button .bi{font-size:1.35rem;line-height:1;}
+  .bottomnav button.on{color:var(--primary);}
+
+  @media(min-width:560px){ .appbar .who b{max-width:none;} }
 </style>
 </head>
 <body>
-<div class="container">
-  <h1>Portal del Habilitado</h1>
 
-  <!-- ===== LOGIN ===== -->
-  <div id="loginView" class="card">
-    <div class="field">
-      <label>Número de Habilitado (Técnico de campo)</label>
-      <input id="inNumero" placeholder="Ej: 1537" inputmode="numeric">
-    </div>
-    <div class="field">
-      <label>PIN</label>
-      <input id="inPin" type="password" placeholder="PIN" inputmode="numeric">
-    </div>
-    <button class="btn btn-block" onclick="hacerLogin()">ENTRAR</button>
-    <div id="loginMsg"></div>
-    <p style="text-align:center"><small class="hint">Prueba: número <b>1537</b> · PIN <b>1234</b></small></p>
+<!-- ================= LOGIN ================= -->
+<div id="loginView">
+  <div class="logo-wrap">
+    <div class="logo-badge"><span>🏷️</span></div>
+    <h1>Portal del Habilitado</h1>
+    <p>Operadora El Tortuguero · IPSA</p>
   </div>
-
-  <!-- ===== APP ===== -->
-  <div id="appView" class="hidden">
-    <div class="top">
-      <div>
-        <div style="font-size:1.05rem;font-weight:bold" id="hNombre"></div>
-        <small class="hint">Habilitado N° <span id="hNumero"></span></small>
-      </div>
-      <div class="chip">Disponible en oficina <b id="hDisponible">—</b></div>
-      <button class="btn btn-ghost btn-sm" onclick="cerrarSesion()">Salir</button>
+  <div class="login-card">
+    <div class="field">
+      <label class="lbl">Número de Habilitado</label>
+      <input id="inNumero" class="inp" placeholder="Ej: 1537" inputmode="numeric" autocomplete="off">
     </div>
-
-    <div class="tabs">
-      <div class="tab active" id="tabNuevoBtn" onclick="verTab('nuevo')">Nueva Solicitud</div>
-      <div class="tab" id="tabMisBtn" onclick="verTab('mis')">Mis Expedientes</div>
+    <div class="field">
+      <label class="lbl">PIN</label>
+      <input id="inPin" class="inp" type="password" placeholder="••••" inputmode="numeric" autocomplete="off">
     </div>
+    <button class="btn-primary" id="btnLogin" onclick="hacerLogin()">ENTRAR</button>
+    <div id="loginMsg"></div>
+    <p class="hint-login">Si no puedes entrar, contacta al digitador.</p>
+  </div>
+</div>
 
-    <!-- NUEVO EXPEDIENTE -->
-    <div id="tabNuevo" class="card">
-      <div class="field">
-        <label>Categoría de entrega</label>
-        <select id="inCategoria">
-          <option value="PRODUCTORES">PRODUCTORES</option>
-          <option value="OPERADORES">OPERADORES</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Fecha de inscripción</label>
-        <input id="inFecha" type="date">
+<!-- ================= APP ================= -->
+<div id="appView" class="hidden">
+  <header class="appbar">
+    <div class="who">
+      <b id="hNombre">—</b>
+      <small>Habilitado N° <span id="hNumero"></span></small>
+    </div>
+    <div class="disp-chip">
+      <b id="hDisponible">—</b>
+      <small>disponibles</small>
+    </div>
+    <button class="icon-btn" onclick="cerrarSesion()" title="Salir">⎋</button>
+  </header>
+
+  <main>
+    <!-- NUEVA -->
+    <section id="viewNueva">
+      <h2 class="sec">Nueva solicitud</h2>
+      <div class="card">
+        <div class="field-lbl">Categoría de entrega</div>
+        <div class="seg" id="segCat">
+          <button class="on" data-v="PRODUCTORES" onclick="setCat(this)">Productores</button>
+          <button data-v="OPERADORES" onclick="setCat(this)">Operadores</button>
+        </div>
+        <div class="field-lbl">Fecha de inscripción</div>
+        <input id="inFecha" class="inp-sm" type="date">
       </div>
 
-      <label style="margin-bottom:10px">Productores del expediente</label>
+      <h2 class="sec">Productores</h2>
       <div id="prodContainer"></div>
-      <button class="btn btn-ghost btn-sm" onclick="agregarFilaProd()">+ Agregar productor</button>
+      <button class="btn-add" onclick="agregarFilaProd()">＋ Agregar productor</button>
 
-      <div class="total-box" id="totalBox">Total: C$ 0</div>
-      <button class="btn btn-block" onclick="enviarExpediente()">ENVIAR SOLICITUD</button>
+      <div class="total-card">
+        <div class="t-l"><small>Total a pagar</small><b id="totalMonto">C$ 0</b></div>
+        <div class="t-r" id="totalAretes">0 aretes</div>
+      </div>
+      <button class="btn-primary" id="btnEnviar" onclick="enviarExpediente()">ENVIAR SOLICITUD</button>
       <div id="nuevoMsg"></div>
-    </div>
+    </section>
 
     <!-- MIS EXPEDIENTES -->
-    <div id="tabMis" class="card hidden">
-      <button class="btn btn-ghost btn-sm" onclick="cargarMisExpedientes()" style="margin-bottom:12px">🔄 Actualizar</button>
+    <section id="viewMis" class="hidden">
+      <h2 class="sec">Mis expedientes</h2>
       <div id="misExpedientes"></div>
-    </div>
-  </div>
+    </section>
+  </main>
+
+  <nav class="bottomnav">
+    <button id="navNueva" class="on" onclick="verTab('nueva')"><span class="bi">＋</span>Nueva</button>
+    <button id="navMis" onclick="verTab('mis')"><span class="bi">🗂️</span>Mis expedientes</button>
+  </nav>
 </div>
 
 <script src="backend.js"></script>
 <script>
   let habilitadoActual = null;
-  let PRECIO = 0; // se cachea al entrar para calcular el total en vivo
+  let PRECIO = 0;
+  let categoria = 'PRODUCTORES';
 
   /* ---------- LOGIN ---------- */
+  document.getElementById('inPin').addEventListener('keydown', e=>{ if(e.key==='Enter') hacerLogin(); });
+
   async function hacerLogin(){
     const num = document.getElementById('inNumero').value.trim();
     const pin = document.getElementById('inPin').value.trim();
     const msg = document.getElementById('loginMsg');
-    msg.innerHTML = '<div class="msg" style="color:var(--muted)">Conectando...</div>';
-    try {
+    const btn = document.getElementById('btnLogin');
+    if(!num || !pin){ msg.innerHTML='<div class="msg msg-err">Escribe tu número y PIN.</div>'; return; }
+    btn.disabled = true; msg.innerHTML='<div class="msg msg-load">Conectando…</div>';
+    try{
       const res = await Backend.login(num, pin);
-      if(res.status !== 'ok'){ msg.innerHTML = '<div class="msg msg-err">'+res.message+'</div>'; return; }
+      if(res.status !== 'ok'){ msg.innerHTML='<div class="msg msg-err">'+res.message+'</div>'; btn.disabled=false; return; }
       habilitadoActual = res.habilitado;
-      const cfg = await Backend.getConfig();
-      PRECIO = cfg.precio;
-      msg.innerHTML = '';
+      const cfg = await Backend.getConfig(); PRECIO = cfg.precio;
+      msg.innerHTML='';
       document.getElementById('loginView').classList.add('hidden');
       document.getElementById('appView').classList.remove('hidden');
       document.getElementById('hNombre').textContent = habilitadoActual.nombre;
       document.getElementById('hNumero').textContent = habilitadoActual.numero;
-      initNuevo();
-      refrescarDisponible();
-    } catch(e){ msg.innerHTML = '<div class="msg msg-err">Error de conexión. Revisa tu internet.</div>'; }
+      initNuevo(); refrescarDisponible();
+    }catch(e){ msg.innerHTML='<div class="msg msg-err">Error de conexión. Revisa tu internet.</div>'; btn.disabled=false; }
   }
-  function cerrarSesion(){ location.reload(); }
-  async function refrescarDisponible(){
-    try { document.getElementById('hDisponible').textContent = await Backend.disponibleLote(); } catch(e){}
-  }
+  function cerrarSesion(){ if(confirm('¿Cerrar sesión?')) location.reload(); }
+  async function refrescarDisponible(){ try{ document.getElementById('hDisponible').textContent = (await Backend.disponibleLote()).toLocaleString(); }catch(e){} }
 
   /* ---------- TABS ---------- */
   function verTab(t){
-    document.getElementById('tabNuevo').classList.toggle('hidden', t!=='nuevo');
-    document.getElementById('tabMis').classList.toggle('hidden', t!=='mis');
-    document.getElementById('tabNuevoBtn').classList.toggle('active', t==='nuevo');
-    document.getElementById('tabMisBtn').classList.toggle('active', t==='mis');
+    document.getElementById('viewNueva').classList.toggle('hidden', t!=='nueva');
+    document.getElementById('viewMis').classList.toggle('hidden', t!=='mis');
+    document.getElementById('navNueva').classList.toggle('on', t==='nueva');
+    document.getElementById('navMis').classList.toggle('on', t==='mis');
     if(t==='mis') cargarMisExpedientes();
+    window.scrollTo(0,0);
   }
 
-  /* ---------- NUEVO EXPEDIENTE ---------- */
+  function setCat(btn){
+    document.querySelectorAll('#segCat button').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on'); categoria = btn.dataset.v;
+  }
+
+  /* ---------- NUEVA ---------- */
   function initNuevo(){
-    const hoy = new Date();
-    document.getElementById('inFecha').value =
-      hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0')+'-'+String(hoy.getDate()).padStart(2,'0');
+    const h=new Date();
+    document.getElementById('inFecha').value = h.getFullYear()+'-'+String(h.getMonth()+1).padStart(2,'0')+'-'+String(h.getDate()).padStart(2,'0');
     document.getElementById('prodContainer').innerHTML='';
-    agregarFilaProd();
-    recalcularTotal();
+    agregarFilaProd(); recalcular();
+    document.getElementById('nuevoMsg').innerHTML='';
   }
 
+  let prodSeq=0;
   function agregarFilaProd(){
-    const cont = document.getElementById('prodContainer');
-    const div = document.createElement('div');
-    div.className='row-prod';
-    div.innerHTML = `
-      <div>
-        <div class="lbl">CUPA (productor)</div>
-        <input class="p-cupa" placeholder="619...N" onblur="autocompletar(this)">
-        <div class="prod-name"></div>
+    prodSeq++;
+    const div=document.createElement('div');
+    div.className='prod';
+    div.innerHTML=`
+      <div class="phead">
+        <span class="pnum">Productor ${document.querySelectorAll('.prod').length+1}</span>
+        <button class="trash" onclick="quitarProd(this)">🗑</button>
       </div>
-      <div>
-        <div class="lbl">Nombre productor</div>
-        <input class="p-nombre" placeholder="Nombre">
+      <div class="field-lbl">CUPA (código del productor)</div>
+      <input class="inp-sm p-cupa" placeholder="619...N" autocomplete="off" onblur="autocompletar(this)">
+      <div class="lookup"></div>
+      <div class="field-lbl" style="margin-top:8px">Nombre del productor</div>
+      <input class="inp-sm p-nombre" placeholder="Nombre completo" autocomplete="off">
+      <div class="grid2" style="margin-top:10px">
+        <div>
+          <div class="field-lbl">CUE</div>
+          <input class="inp-sm p-cue" placeholder="558" inputmode="numeric" autocomplete="off">
+        </div>
+        <div>
+          <div class="field-lbl">Cantidad</div>
+          <input class="inp-sm p-cant" type="number" min="1" inputmode="numeric" placeholder="0" oninput="recalcular()">
+        </div>
       </div>
-      <div>
-        <div class="lbl">CUE</div>
-        <input class="p-cue" placeholder="558">
-      </div>
-      <div>
-        <div class="lbl">Cantidad</div>
-        <input class="p-cant" type="number" min="1" placeholder="0" oninput="recalcularTotal()">
-      </div>
-      <div class="del-wrap">
-        <button class="btn btn-danger btn-sm" onclick="this.closest('.row-prod').remove();recalcularTotal()">✕</button>
-      </div>`;
-    cont.appendChild(div);
+      <div class="subtotal">Subtotal: <b class="p-sub">C$ 0</b></div>`;
+    document.getElementById('prodContainer').appendChild(div);
+    renumerar();
   }
+  function quitarProd(btn){
+    const cards=document.querySelectorAll('.prod');
+    if(cards.length<=1){ btn.closest('.prod').querySelectorAll('input').forEach(i=>i.value=''); recalcular(); return; }
+    btn.closest('.prod').remove(); renumerar(); recalcular();
+  }
+  function renumerar(){ document.querySelectorAll('.prod .pnum').forEach((el,i)=>el.textContent='Productor '+(i+1)); }
 
   async function autocompletar(inp){
-    const row = inp.closest('.row-prod');
-    const prod = await Backend.buscarProductor(inp.value);
-    const nameDiv = row.querySelector('.prod-name');
-    if(prod){
-      row.querySelector('.p-nombre').value = prod.nombre;
-      row.querySelector('.p-cue').value = prod.cue;
-      nameDiv.textContent = '✓ '+prod.nombre;
-    } else {
-      nameDiv.textContent = inp.value ? 'Nuevo productor (completa los datos)' : '';
-      nameDiv.style.color = 'var(--muted)';
-    }
+    const card=inp.closest('.prod'); const look=card.querySelector('.lookup');
+    const val=inp.value.trim(); if(!val){ look.textContent=''; return; }
+    look.className='lookup'; look.textContent='Buscando…';
+    try{
+      const p=await Backend.buscarProductor(val);
+      if(p){ card.querySelector('.p-nombre').value=p.nombre; card.querySelector('.p-cue').value=p.cue;
+             look.className='lookup ok'; look.textContent='✓ '+p.nombre; }
+      else { look.className='lookup new'; look.textContent='Productor nuevo — completa nombre y CUE'; }
+    }catch(e){ look.textContent=''; }
   }
 
-  function recalcularTotal(){
-    let aretes = 0;
-    document.querySelectorAll('#prodContainer .p-cant').forEach(i=> aretes += Number(i.value)||0 );
-    document.getElementById('totalBox').textContent = 'Total: C$ '+(aretes*PRECIO).toLocaleString()+'  ('+aretes+' aretes)';
+  function recalcular(){
+    let aretes=0;
+    document.querySelectorAll('.prod').forEach(card=>{
+      const c=Number(card.querySelector('.p-cant').value)||0; aretes+=c;
+      card.querySelector('.p-sub').textContent='C$ '+(c*PRECIO).toLocaleString();
+    });
+    document.getElementById('totalMonto').textContent='C$ '+(aretes*PRECIO).toLocaleString();
+    document.getElementById('totalAretes').textContent=aretes.toLocaleString()+' aretes';
   }
 
   async function enviarExpediente(){
-    const prods = [];
-    document.querySelectorAll('#prodContainer .row-prod').forEach(row=>{
-      const cupa = row.querySelector('.p-cupa').value.trim();
-      const nombre = row.querySelector('.p-nombre').value.trim();
-      const cue = row.querySelector('.p-cue').value.trim();
-      const cant = Number(row.querySelector('.p-cant').value)||0;
+    const prods=[];
+    document.querySelectorAll('.prod').forEach(card=>{
+      const cupa=card.querySelector('.p-cupa').value.trim();
+      const nombre=card.querySelector('.p-nombre').value.trim();
+      const cue=card.querySelector('.p-cue').value.trim();
+      const cant=Number(card.querySelector('.p-cant').value)||0;
       if(cant>0) prods.push({cupa,nombre,cue,cantidad:cant});
     });
-    const msg = document.getElementById('nuevoMsg');
+    const msg=document.getElementById('nuevoMsg'); const btn=document.getElementById('btnEnviar');
     if(prods.length===0){ msg.innerHTML='<div class="msg msg-err">Agrega al menos un productor con cantidad.</div>'; return; }
-    msg.innerHTML='<div class="msg" style="color:var(--muted)">Enviando...</div>';
-    try {
-      const res = await Backend.crearExpediente({
-        categoria: document.getElementById('inCategoria').value,
-        fecha: formatoFecha(document.getElementById('inFecha').value),
-        habilitadoNumero: habilitadoActual.numero,
-        habilitadoNombre: habilitadoActual.nombre,
-        productores: prods
+    if(prods.some(p=>!p.nombre)){ msg.innerHTML='<div class="msg msg-err">Cada productor necesita un nombre.</div>'; return; }
+    btn.disabled=true; msg.innerHTML='<div class="msg msg-load">Enviando…</div>';
+    try{
+      const res=await Backend.crearExpediente({
+        categoria, fecha:fmtFecha(document.getElementById('inFecha').value),
+        habilitadoNumero:habilitadoActual.numero, habilitadoNombre:habilitadoActual.nombre, productores:prods
       });
       if(res.status==='success'){
-        msg.innerHTML='<div class="msg msg-ok">✅ Solicitud enviada. Ahora pasa a caja a pagar y lleva el recibo al digitador.</div>';
-        initNuevo();
-        refrescarDisponible();
-      } else {
-        msg.innerHTML='<div class="msg msg-err">'+res.message+'</div>';
-      }
-    } catch(e){ msg.innerHTML='<div class="msg msg-err">Error de conexión al enviar.</div>'; }
+        initNuevo(); refrescarDisponible();
+        msg.innerHTML='<div class="msg msg-ok">✅ Solicitud enviada. Pasa a caja a pagar y lleva el recibo al digitador.</div>';
+        window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+      }else{ msg.innerHTML='<div class="msg msg-err">'+res.message+'</div>'; }
+    }catch(e){ msg.innerHTML='<div class="msg msg-err">Error de conexión al enviar.</div>'; }
+    btn.disabled=false;
   }
-
-  function formatoFecha(iso){ if(!iso) return ''; const p=iso.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+  function fmtFecha(iso){ if(!iso) return ''; const p=iso.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
 
   /* ---------- MIS EXPEDIENTES ---------- */
   async function cargarMisExpedientes(){
-    const cont = document.getElementById('misExpedientes');
-    cont.innerHTML='<p style="text-align:center;color:var(--muted)">Cargando...</p>';
-    let lista = [];
-    try { lista = await Backend.getExpedientesDeHabilitado(habilitadoActual.numero); }
-    catch(e){ cont.innerHTML='<p style="text-align:center;color:var(--danger)">Error de conexión.</p>'; return; }
-    if(lista.length===0){ cont.innerHTML='<p style="text-align:center;color:var(--muted)">Aún no tienes expedientes.</p>'; return; }
-    cont.innerHTML = lista.map(e=>{
-      const badge = e.estado==='PENDIENTE_PAGO' ? '<span class="badge b-pend">Pendiente de pago</span>'
-                  : e.estado==='PAGADO' ? '<span class="badge b-pag">Pagado / en proceso</span>'
-                  : '<span class="badge b-ent">Entregado en IPSA</span>';
-      const filas = e.productores.map(p=>`
-        <tr>
-          <td>${p.nombre||'-'}<br><small class="hint mono">${p.cupa||''}</small></td>
-          <td>${p.cantidad}</td>
-          <td>${p.cuiaInicial? '<span class="mono">'+p.cuiaInicial+' – '+p.cuiaFinal+'</span>' : '<small class="hint">por asignar</small>'}</td>
-        </tr>`).join('');
-      return `<div class="card" style="background:rgba(0,0,0,.2);margin-bottom:14px">
-        <div class="top" style="margin-bottom:8px">
-          <div><b>Expediente #${e.id}</b> · ${e.categoria}<br><small class="hint">${e.fecha}${e.recibo? ' · Recibo '+e.recibo:''}</small></div>
-          ${badge}
-        </div>
-        <table><thead><tr><th>Productor</th><th>Cant.</th><th>CUIA asignado</th></tr></thead><tbody>${filas}</tbody></table>
-        <div style="text-align:right;margin-top:8px"><small class="hint">Total: </small><b style="color:var(--success)">C$ ${e.total.toLocaleString()}</b></div>
+    const cont=document.getElementById('misExpedientes');
+    cont.innerHTML='<div class="empty">Cargando…</div>';
+    let lista=[];
+    try{ lista=await Backend.getExpedientesDeHabilitado(habilitadoActual.numero); }
+    catch(e){ cont.innerHTML='<div class="empty">Error de conexión.</div>'; return; }
+    if(lista.length===0){ cont.innerHTML='<div class="empty"><div class="em-ico">🗂️</div><p>Aún no tienes expedientes.</p></div>'; return; }
+    cont.innerHTML=lista.map(e=>{
+      const pill = e.estado==='PENDIENTE_PAGO'?'<span class="pill pill-pend">Pendiente de pago</span>'
+                 : e.estado==='PAGADO'?'<span class="pill pill-pag">En proceso</span>'
+                 : '<span class="pill pill-ent">Entregado</span>';
+      const lineas=e.productores.map(p=>`
+        <div class="pline">
+          <div class="pl-l"><div class="nm">${p.nombre||'—'}</div><div class="cp">${p.cupa||''}</div></div>
+          <div class="pl-r"><div class="qt">${p.cantidad} aretes</div>
+            <div class="cu">${p.cuiaInicial? p.cuiaInicial+'–'+p.cuiaFinal : 'CUIA por asignar'}</div></div>
+        </div>`).join('');
+      return `<div class="exp">
+        <div class="ehead"><div><b>Expediente #${e.id}</b><br><small>${e.categoria} · ${e.fecha}${e.recibo?' · Recibo '+e.recibo:''}</small></div>${pill}</div>
+        ${lineas}
+        <div class="efoot"><span class="muted" style="font-size:.78rem">Total</span> <b>C$ ${e.total.toLocaleString()}</b></div>
       </div>`;
     }).join('');
   }

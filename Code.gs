@@ -126,11 +126,15 @@ function getHabilitados() {
 
 function login(numero, pin) {
   var h = leerObjetos(SH.HABILITADOS).filter(function (x) {
-    return String(x.numero) === String(numero) && String(x.pin) === String(pin);
+    return String(x.numero).trim() === String(numero).trim() && String(x.pin).trim() === String(pin).trim();
   })[0];
   if (!h) return { status: 'error', message: 'Número o PIN incorrecto' };
-  if (String(h.estado).toUpperCase() !== 'ACTIVO') return { status: 'pendiente', message: 'Cuenta pendiente de aprobación' };
-  return { status: 'ok', habilitado: { numero: String(h.numero), nombre: h.nombre, cedula: String(h.cedula), estado: h.estado } };
+  // Solo se bloquea si el estado dice explícitamente PENDIENTE / INACTIVO / BLOQUEADO.
+  // Si está vacío o dice ACTIVO, se permite entrar.
+  var estado = String(h.estado || '').trim().toUpperCase();
+  if (estado === 'PENDIENTE' || estado === 'INACTIVO' || estado === 'BLOQUEADO')
+    return { status: 'pendiente', message: 'Cuenta ' + estado.toLowerCase() + '. Contacta al digitador.' };
+  return { status: 'ok', habilitado: { numero: String(h.numero).trim(), nombre: String(h.nombre).trim(), cedula: String(h.cedula), estado: estado || 'ACTIVO' } };
 }
 
 // =====================================================================
@@ -390,6 +394,44 @@ function inicializar() {
 
   SpreadsheetApp.getUi && SpreadsheetApp.flush();
   Logger.log('Inicialización completa. Hojas creadas y datos de prueba cargados.');
+}
+
+// =====================================================================
+//  CONFIGURAR OPERADORA (ejecutar UNA vez para cargar tus habilitados)
+//  - Rellena Config con valores por defecto SI está vacío (no pisa lo tuyo)
+//  - Carga la lista real de habilitados de la operadora (estado ACTIVO)
+//  PIN por defecto: 1234  → cámbialo por habilitado en la hoja cuando quieras.
+// =====================================================================
+function configurarOperadora() {
+  var ss = libro();
+
+  // --- Config: valores por defecto solo si está vacío ---
+  var cfg = ss.getSheetByName(SH.CONFIG);
+  if (!cfg) { cfg = ss.insertSheet(SH.CONFIG); }
+  cfg.getRange(1, 1, 1, 3).setValues([['precio', 'cuiaSiguiente', 'cuiaFinLote']]).setFontWeight('bold');
+  var v = cfg.getRange(2, 1, 1, 3).getValues()[0];
+  if (!v[0] && !v[1] && !v[2]) {
+    cfg.getRange(2, 1, 1, 3).setValues([[60, 15972996, 15978995]]);
+  }
+  cfg.setFrozenRows(1);
+
+  // --- Habilitados de la operadora ---
+  var lista = [
+    ['3982', 'LESTER ALBERTO TORREZ MEDINA', '', '1234', 'ACTIVO'],
+    ['3986', 'SALOMON DEL SOCORRO RIVAS GRANADOS', '', '1234', 'ACTIVO'],
+    ['3988', 'LENINS ANTONIO LAZO DIAZ', '', '1234', 'ACTIVO'],
+    ['1537', 'ALEXANDER GABRIEL DIAZ ARAGON', '6190306950000U', '1234', 'ACTIVO'],
+    ['3981', 'RAFAEL ANTONIO URBINA', '', '1234', 'ACTIVO'],
+    ['3742', 'JUSTINO JIRON URBINA', '', '1234', 'ACTIVO'],
+    ['3985', 'RUBNER ALFONSO MATUS TOLEDO', '', '1234', 'ACTIVO']
+  ];
+  crearHoja(ss, SH.HABILITADOS, ['numero', 'nombre', 'cedula', 'pin', 'estado'], lista);
+  // Fuerza la columna número y PIN como TEXTO para que no se pierdan ceros
+  var shH = hoja(SH.HABILITADOS);
+  shH.getRange(2, 1, lista.length, 1).setNumberFormat('@'); // numero
+  shH.getRange(2, 4, lista.length, 1).setNumberFormat('@'); // pin
+
+  Logger.log('Listo: Config verificado y ' + lista.length + ' habilitados cargados.');
 }
 
 function crearHoja(ss, nombre, headers, filas) {

@@ -17,7 +17,7 @@
 
   /* >>> PEGA AQUÍ la URL /exec de tu implementación del Apps Script <<<
      Déjala vacía ("") para trabajar en modo LOCAL con localStorage.   */
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxJSGlE3VvTub0k7JmScTjYusRxIOHJeejlRcmvv0y26DHusxpV_japksBW3Z-Tgjnb/exec";
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx83DyDu8cyIriQ-5sQtLscEKc_tH9hnu9iiMCN4BRXpnVAdxN3p167Nk-xvinTBOl7_w/exec";
 
   const MODO_REMOTO = !!SCRIPT_URL;
 
@@ -104,9 +104,10 @@
     async disponibleLote() { return disponible(cargar()); },
     async getHabilitados() { return cargar().habilitados; },
     async login(numero, pin) {
-      const h = cargar().habilitados.find(x => String(x.numero) === String(numero) && String(x.pin) === String(pin));
+      const h = cargar().habilitados.find(x => String(x.numero).trim() === String(numero).trim() && String(x.pin).trim() === String(pin).trim());
       if (!h) return { status: "error", message: "Número o PIN incorrecto" };
-      if (h.estado !== "ACTIVO") return { status: "pendiente", message: "Cuenta pendiente de aprobación" };
+      const estado = String(h.estado || "").trim().toUpperCase();
+      if (["PENDIENTE","INACTIVO","BLOQUEADO"].includes(estado)) return { status: "pendiente", message: "Cuenta " + estado.toLowerCase() + ". Contacta al digitador." };
       return { status: "ok", habilitado: h };
     },
     async buscarProductor(cupa) {

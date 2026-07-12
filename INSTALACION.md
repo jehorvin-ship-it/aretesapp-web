@@ -25,6 +25,9 @@ Arquitectura:
    - Google pedirá permisos la primera vez → *Revisar permisos* → elige tu cuenta → *Avanzado* → *Ir a (nombre) (no seguro)* → *Permitir*.
    - Esto crea las 5 pestañas (`Config`, `Habilitados`, `Productores`, `Expedientes`, `Detalle`) con datos de prueba.
 5. Vuelve a la hoja de cálculo: verás las pestañas creadas. Aquí puedes editar precio, lote y habilitados a mano cuando quieras.
+6. **Cargar los habilitados reales de la operadora:** en el editor selecciona la función **`configurarOperadora`** y pulsa **Ejecutar**. Esto rellena `Config` si estaba vacío y carga la lista de habilitados con estado `ACTIVO` y PIN por defecto `1234`. Cambia los PIN por habilitado directamente en la hoja `Habilitados` cuando quieras.
+
+> **¿Mejor escribir los habilitados a mano?** No hace falta: `configurarOperadora()` los carga sin errores de tipeo. Si prefieres agregarlos/editarlos a mano, solo cuida que la columna **estado** diga `ACTIVO` (si la dejas en blanco ahora también funciona; el login solo bloquea si dice `PENDIENTE`, `INACTIVO` o `BLOQUEADO`).
 
 ### Publicar el Web App
 
@@ -65,6 +68,10 @@ Arquitectura:
    habilitado.html
    digitador.html
    backend.js
+   manifest.json
+   icon-192.png
+   icon-512.png
+   icon-maskable-512.png
    README.md
    INSTALACION.md
    Code.gs          (referencia; el que corre es el pegado en Apps Script)
@@ -101,6 +108,12 @@ Los habilitados abren el enlace `habilitado.html` en su celular y pueden **insta
 Estados de un expediente: `PENDIENTE_PAGO` → `PAGADO` (recibo + CUIA asignados) → `ENTREGADO` (todos sus productores marcados en el IPSA).
 
 ---
+
+## Solución de problemas
+
+- **"Cuenta pendiente de aprobación" al entrar:** la columna `estado` del habilitado está en blanco o dice algo distinto de `ACTIVO`. Ejecuta `configurarOperadora()` o pon `ACTIVO` a mano. (La versión nueva del `Code.gs` ya no bloquea por estado en blanco — recuerda **redesplegar** después de pegar el código actualizado: *Implementar → Gestionar implementaciones → editar ✏ → Nueva versión*.)
+- **Totales en C$ 0:** la hoja `Config` está vacía. Ejecuta `configurarOperadora()` (rellena precio y lote por defecto) o escribe los valores en la fila 2.
+- **Cambié el `Code.gs` y no se refleja:** los cambios en funciones que corres desde el editor aplican al instante; pero los que afectan al Web App (doGet/doPost, login) requieren **Nueva versión** en Gestionar implementaciones.
 
 ## Seguridad (ojo)
 
