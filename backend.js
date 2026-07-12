@@ -15,10 +15,9 @@
 (function (global) {
   "use strict";
 
-  /* La URL se define en config.js (window.SCRIPT_URL) — se configura
-     UNA sola vez ahí y las actualizaciones de este archivo no la pisan.
-     Compatibilidad: si config.js no está, se usa modo LOCAL. */
-  const SCRIPT_URL = (typeof global.SCRIPT_URL === "string") ? global.SCRIPT_URL.trim() : "";
+  /* >>> PEGA AQUÍ la URL /exec de tu implementación del Apps Script <<<
+     Déjala vacía ("") para trabajar en modo LOCAL con localStorage.   */
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyLqMOwccxqgW49geXTKJdi9Lp6teRShV2nduu8kgDV4_Sg_BmL4V-pwDt-tLlOhVgUVw/exec";
 
   const MODO_REMOTO = !!SCRIPT_URL;
 
