@@ -17,7 +17,7 @@
 
   /* >>> PEGA AQUÍ la URL /exec de tu implementación del Apps Script <<<
      Déjala vacía ("") para trabajar en modo LOCAL con localStorage.   */
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx83DyDu8cyIriQ-5sQtLscEKc_tH9hnu9iiMCN4BRXpnVAdxN3p167Nk-xvinTBOl7_w/exec";
+  const SCRIPT_URL = "";
 
   const MODO_REMOTO = !!SCRIPT_URL;
 
