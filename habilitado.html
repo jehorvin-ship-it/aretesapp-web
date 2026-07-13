@@ -23,8 +23,8 @@
     --nav-h:66px;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
-  html,body{margin:0;padding:0;width:100%;max-width:100%;overflow-x:hidden;overscroll-behavior:none;}
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulation;}
+  html,body{margin:0;padding:0;width:100%;max-width:100%;overflow-x:hidden;overflow-x:clip;overscroll-behavior-x:none;}
   body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);
        font-size:17px;line-height:1.45;-webkit-font-smoothing:antialiased;
        touch-action:manipulation;-webkit-touch-callout:none;
@@ -256,7 +256,7 @@
   </nav>
 </div>
 
-<script src="backend.js"></script>
+<script src="backend.js?v=3"></script>
 <script>
   /* ---- Bloqueo de zoom ----
      El pellizco queda bloqueado por el viewport (user-scalable=no) y el

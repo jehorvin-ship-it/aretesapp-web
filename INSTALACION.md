@@ -111,6 +111,14 @@ Estados de un expediente: `PENDIENTE_PAGO` → `PAGADO` (recibo + CUIA asignados
 
 ## Solución de problemas
 
+- **El scroll solo funciona con 2 dedos / la app se ve como una versión vieja:** el celular está
+  cargando una versión ANTERIOR desde la caché (GitHub Pages y Chrome guardan copias hasta ~10 min o más;
+  si la app está "instalada" en la pantalla de inicio, la copia puede durar días). Después de subir archivos
+  nuevos: espera 2-10 minutos, luego en Chrome del celular abre ⋮ → Historial → Borrar datos de navegación →
+  "Imágenes y archivos en caché" (o mantén presionado el botón recargar y elige recarga completa).
+  Si la instalaste en pantalla de inicio, elimínala y vuélvela a agregar. Esta versión además carga
+  `backend.js?v=3`, que fuerza al navegador a traer el JS nuevo.
+
 - **"Cuenta pendiente de aprobación" al entrar:** la columna `estado` del habilitado está en blanco o dice algo distinto de `ACTIVO`. Ejecuta `configurarOperadora()` o pon `ACTIVO` a mano. (La versión nueva del `Code.gs` ya no bloquea por estado en blanco — recuerda **redesplegar** después de pegar el código actualizado: *Implementar → Gestionar implementaciones → editar ✏ → Nueva versión*.)
 - **Totales en C$ 0:** la hoja `Config` está vacía. Ejecuta `configurarOperadora()` (rellena precio y lote por defecto) o escribe los valores en la fila 2.
 - **Cambié el `Code.gs` y no se refleja:** los cambios en funciones que corres desde el editor aplican al instante; pero los que afectan al Web App (doGet/doPost, login) requieren **Nueva versión** en Gestionar implementaciones.
