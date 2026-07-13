@@ -103,11 +103,21 @@ Los habilitados abren el enlace `habilitado.html` en su celular y pueden **insta
 **Habilitados** — numero · nombre · cedula · pin · estado
 **Productores** — cupa · nombre · cue · habilitadoNumero
 **Expedientes** — id · fecha · categoria · habilitadoNumero · habilitadoNombre · estado · recibo · controlPago · totalAretes · total · fechaAprobacion
-**Detalle** — expedienteId · idx · cupa · nombre · cue · cantidad · cuiaInicial · cuiaFinal · entregado
+**Detalle** — expedienteId · idx · cupa · nombre · cue · cantidad · cuiaInicial · cuiaFinal · entregado · recibo (opcional, cuando se usa "Recibo por productor")
 
 Estados de un expediente: `PENDIENTE_PAGO` → `PAGADO` (recibo + CUIA asignados) → `ENTREGADO` (todos sus productores marcados en el IPSA).
 
 ---
+
+## Novedades de esta versión
+
+- **Categoría OPERADORES sin CUE:** al elegir "Operadores" en el portal del habilitado, el campo CUE
+  se oculta (la entrega es directa al habilitado). En "Productores" el CUE se usa normal.
+- **Recibo por productor (opcional):** en Pendientes de Aprobar, marca "Recibo por productor" para
+  escribir un recibo distinto a cada productor. Si no lo marcas, funciona como siempre (un recibo para todo
+  el expediente). La columna `recibo` de la hoja `Detalle` se crea sola la primera vez que se usa.
+- **IMPORTANTE:** pega el `Code.gs` nuevo en Apps Script y **redespliega**
+  (Implementar → Gestionar implementaciones → ✏ → Nueva versión) para activar estas funciones.
 
 ## Solución de problemas
 

@@ -107,6 +107,8 @@
   .trash{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#fca5a5;width:44px;height:44px;
          border-radius:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  #prodContainer.sin-cue .cue-wrap{display:none;}
+  #prodContainer.sin-cue .grid2{grid-template-columns:1fr;}
   .lookup{font-size:.88rem;min-height:20px;margin:8px 4px 2px;}
   .lookup.ok{color:var(--success);font-weight:600;} .lookup.new{color:var(--warn);}
   .subtotal{text-align:right;font-size:.95rem;color:var(--muted);margin-top:12px;}
@@ -256,7 +258,7 @@
   </nav>
 </div>
 
-<script src="backend.js?v=3"></script>
+<script src="backend.js?v=4"></script>
 <script>
   /* ---- Bloqueo de zoom ----
      El pellizco queda bloqueado por el viewport (user-scalable=no) y el
@@ -320,6 +322,11 @@
   function setCat(btn){
     document.querySelectorAll('#segCat button').forEach(b=>b.classList.remove('on'));
     btn.classList.add('on'); categoria = btn.dataset.v;
+    aplicarModoCategoria();
+  }
+  function aplicarModoCategoria(){
+    // En OPERADORES la entrega es directa al habilitado: el CUE no aplica y se oculta
+    document.getElementById('prodContainer').classList.toggle('sin-cue', categoria==='OPERADORES');
   }
 
   /* ---------- NUEVA ---------- */
@@ -328,6 +335,7 @@
     document.getElementById('inFecha').value = h.getFullYear()+'-'+String(h.getMonth()+1).padStart(2,'0')+'-'+String(h.getDate()).padStart(2,'0');
     document.getElementById('prodContainer').innerHTML='';
     agregarFilaProd(); recalcular();
+    aplicarModoCategoria();
     document.getElementById('nuevoMsg').innerHTML='';
   }
 
@@ -351,7 +359,7 @@
       <div class="field-lbl">Nombre del productor</div>
       <input class="inp-sm p-nombre" placeholder="Nombre completo" autocomplete="off">
       <div class="grid2" style="margin-top:12px">
-        <div>
+        <div class="cue-wrap">
           <div class="field-lbl">CUE</div>
           <input class="inp-sm p-cue" placeholder="558" inputmode="numeric" autocomplete="off">
         </div>
@@ -383,7 +391,7 @@
       const p=await Backend.buscarProductor(val);
       if(p){ card.querySelector('.p-nombre').value=p.nombre; card.querySelector('.p-cue').value=p.cue;
              look.className='lookup ok'; look.textContent='✓ '+p.nombre; }
-      else { look.className='lookup new'; look.textContent='Productor nuevo — completa nombre y CUE'; }
+      else { look.className='lookup new'; look.textContent = categoria==='OPERADORES' ? 'Productor nuevo — completa el nombre' : 'Productor nuevo — completa nombre y CUE'; }
     }catch(e){ look.textContent=''; }
   }
 
@@ -402,7 +410,7 @@
     document.querySelectorAll('.prod').forEach(card=>{
       const cupa=card.querySelector('.p-cupa').value.trim();
       const nombre=card.querySelector('.p-nombre').value.trim();
-      const cue=card.querySelector('.p-cue').value.trim();
+      const cue = categoria==='OPERADORES' ? '' : card.querySelector('.p-cue').value.trim();
       const cant=Number(card.querySelector('.p-cant').value)||0;
       if(cant>0) prods.push({cupa,nombre,cue,cantidad:cant});
     });
@@ -441,7 +449,8 @@
         <div class="pline">
           <div class="pl-l"><div class="nm">${p.nombre||'—'}</div><div class="cp">${p.cupa||''}</div></div>
           <div class="pl-r"><div class="qt">${p.cantidad} aretes</div>
-            <div class="cu">${p.cuiaInicial? p.cuiaInicial+'–'+p.cuiaFinal : 'CUIA por asignar'}</div></div>
+            <div class="cu">${p.cuiaInicial? p.cuiaInicial+'–'+p.cuiaFinal : 'CUIA por asignar'}</div>
+            ${p.recibo?'<div class="cp">Recibo '+p.recibo+'</div>':''}</div>
         </div>`).join('');
       return `<div class="exp">
         <div class="ehead"><div><b>Expediente #${e.id}</b><br><small>${e.categoria} · ${e.fecha}${e.recibo?' · Recibo '+e.recibo:''}</small></div>${pill}</div>

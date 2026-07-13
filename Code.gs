@@ -54,7 +54,7 @@ function doPost(e) {
   try {
     switch (body.tipo) {
       case 'crearExpediente':  return json(crearExpediente(body.datos));
-      case 'aprobar':          return json(aprobarExpediente(body.id, body.recibo, body.controlPago));
+      case 'aprobar':          return json(aprobarExpediente(body.id, body.recibo, body.controlPago, body.recibos));
       case 'marcarEntregado':  return json(marcarProductorEntregado(body.expedienteId, body.indice, body.entregado));
       case 'saveConfig':       return json(saveConfig(body));
       default:                 return json({ status: 'error', message: 'Operación POST no reconocida: ' + body.tipo });
@@ -193,7 +193,8 @@ function armarExpediente(e, detallePorExp) {
         cantidad: Number(p.cantidad) || 0,
         cuiaInicial: p.cuiaInicial === '' || p.cuiaInicial === null ? null : Number(p.cuiaInicial),
         cuiaFinal: p.cuiaFinal === '' || p.cuiaFinal === null ? null : Number(p.cuiaFinal),
-        entregado: esVerdadero(p.entregado)
+        entregado: esVerdadero(p.entregado),
+        recibo: String(p.recibo || '')
       };
     })
   };
@@ -260,7 +261,7 @@ function crearExpediente(datos) {
 
     var shDet = hoja(SH.DETALLE);
     prods.forEach(function (p, i) {
-      shDet.appendRow([id, i, p.cupa, p.nombre, p.cue, p.cantidad, '', '', 'FALSE']);
+      shDet.appendRow([id, i, p.cupa, p.nombre, p.cue, p.cantidad, '', '', 'FALSE', '']);
       upsertProductor(p.cupa, p.nombre, p.cue, datos.habilitadoNumero);
     });
 
@@ -271,12 +272,13 @@ function crearExpediente(datos) {
 }
 
 // ---- Aprobar: asigna CUIA por productor y descuenta lote -----------
-function aprobarExpediente(id, recibo, controlPago) {
+function aprobarExpediente(id, recibo, controlPago, recibos) {
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
     id = Number(id);
-    if (!recibo) return { status: 'error', message: 'Falta el número de recibo (DOCUMENTO)' };
+    var porProd = recibos && recibos.length > 0;
+    if (!recibo && !porProd) return { status: 'error', message: 'Falta el número de recibo (DOCUMENTO)' };
 
     var shExp = hoja(SH.EXPEDIENTES);
     var exps = leerObjetos(SH.EXPEDIENTES);
@@ -292,16 +294,28 @@ function aprobarExpediente(id, recibo, controlPago) {
 
     // Asigna rangos consecutivos productor por productor
     var shDet = hoja(SH.DETALLE);
+    // Auto-crea la columna 'recibo' en Detalle si la hoja es de una versión anterior
+    if (String(shDet.getRange(1, 10).getValue()) !== 'recibo') {
+      shDet.getRange(1, 10).setValue('recibo').setFontWeight('bold');
+    }
     var det = leerObjetos(SH.DETALLE)
       .filter(function (d) { return Number(d.expedienteId) === id; })
       .sort(function (a, b) { return Number(a.idx) - Number(b.idx); });
 
+    if (porProd) {
+      if (recibos.length !== det.length) return { status: 'error', message: 'Debe haber un recibo por cada productor (' + det.length + ')' };
+      for (var ri = 0; ri < recibos.length; ri++) {
+        if (!String(recibos[ri] || '').replace(/\s/g, '')) return { status: 'error', message: 'Falta el recibo del productor #' + (ri + 1) };
+      }
+    }
+
     var cursor = cfg.cuiaSiguiente;
-    det.forEach(function (d) {
+    det.forEach(function (d, i) {
       var cant = Number(d.cantidad) || 0;
       var ini = cursor;
       var fin = cursor + cant - 1;
       shDet.getRange(d._fila, 7, 1, 2).setValues([[ini, fin]]); // cols cuiaInicial, cuiaFinal
+      shDet.getRange(d._fila, 10).setValue(porProd ? String(recibos[i]).trim() : '');
       cursor = fin + 1;
     });
 
@@ -310,8 +324,14 @@ function aprobarExpediente(id, recibo, controlPago) {
 
     // Actualiza el expediente
     // columnas: id(1) fecha(2) categoria(3) habNum(4) habNom(5) estado(6) recibo(7) controlPago(8) totalAretes(9) total(10) fechaAprobacion(11)
+    var reciboExp = recibo;
+    if (porProd) {
+      var unicos = [];
+      recibos.forEach(function (r) { r = String(r).trim(); if (unicos.indexOf(r) === -1) unicos.push(r); });
+      reciboExp = unicos.join(', ');
+    }
     shExp.getRange(exp._fila, 6).setValue('PAGADO');
-    shExp.getRange(exp._fila, 7).setValue(String(recibo).trim());
+    shExp.getRange(exp._fila, 7).setValue(String(reciboExp).trim());
     shExp.getRange(exp._fila, 8).setValue(controlPago ? 'TRUE' : 'FALSE');
     shExp.getRange(exp._fila, 11).setValue(fechaHoy());
 
@@ -383,7 +403,7 @@ function inicializar() {
     ['id', 'fecha', 'categoria', 'habilitadoNumero', 'habilitadoNombre', 'estado', 'recibo', 'controlPago', 'totalAretes', 'total', 'fechaAprobacion'],
     []);
   crearHoja(ss, SH.DETALLE,
-    ['expedienteId', 'idx', 'cupa', 'nombre', 'cue', 'cantidad', 'cuiaInicial', 'cuiaFinal', 'entregado'],
+    ['expedienteId', 'idx', 'cupa', 'nombre', 'cue', 'cantidad', 'cuiaInicial', 'cuiaFinal', 'entregado', 'recibo'],
     []);
 
   // Borra la hoja "Hoja 1" / "Sheet1" vacía si existe

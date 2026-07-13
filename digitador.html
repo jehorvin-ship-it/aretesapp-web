@@ -133,7 +133,7 @@
   </div>
 </div>
 
-<script src="backend.js?v=3"></script>
+<script src="backend.js?v=4"></script>
 <script>
   /* ---- Bloqueo de zoom (viewport + touch-action lo hacen; gesture* refuerza iOS) ---- */
   document.addEventListener('gesturestart', e=>e.preventDefault());
@@ -163,18 +163,20 @@
     } catch(e){ cont.innerHTML='<p style="text-align:center;color:var(--danger)">Error de conexión.</p>'; return; }
     if(lista.length===0){ cont.innerHTML='<p style="text-align:center;color:var(--muted)">No hay expedientes pendientes.</p>'; return; }
     cont.innerHTML = lista.map(e=>{
-      const filas = e.productores.map(p=>`
+      const filas = e.productores.map((p,i)=>`
         <tr><td>${p.nombre||'-'}<br><small class="hint mono">${p.cupa||''}</small></td>
-        <td>${p.cue||'-'}</td><td>${p.cantidad}</td></tr>`).join('');
+        <td>${e.categoria==='OPERADORES' ? '—' : (p.cue||'-')}</td><td>${p.cantidad}</td>
+        <td class="rp-${e.id}" style="display:none"><input id="recibo-p-${e.id}-${i}" placeholder="Recibo" style="max-width:110px"></td></tr>`).join('');
       return `<div class="exp-block">
         <div class="exp-head">
           <div><b>Expediente #${e.id}</b> · ${e.categoria}<br>
             <small class="hint">${e.fecha} · Habilitado ${e.habilitadoNumero} — ${e.habilitadoNombre}</small></div>
           <div style="text-align:right"><b style="color:var(--success)">C$ ${e.total.toLocaleString()}</b><br><small class="hint">${e.totalAretes} aretes</small></div>
         </div>
-        <table><thead><tr><th>Productor</th><th>CUE</th><th>Cant.</th></tr></thead><tbody>${filas}</tbody></table>
+        <table><thead><tr><th>Productor</th><th>CUE</th><th>Cant.</th><th class="rp-${e.id}" style="display:none">Recibo</th></tr></thead><tbody>${filas}</tbody></table>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px">
           <input id="recibo-${e.id}" placeholder="N° Recibo (DOCUMENTO)" style="max-width:200px">
+          <label class="done-row" style="margin:0"><input type="checkbox" id="porprod-${e.id}" onchange="toggleRecibos(${e.id})"> Recibo por productor</label>
           <label class="done-row" style="margin:0"><input type="checkbox" id="pago-${e.id}" checked> Control de pago</label>
           <button class="btn btn-success btn-sm" onclick="aprobar(${e.id})">Aprobar y asignar CUIA</button>
         </div>
@@ -182,14 +184,31 @@
     }).join('');
   }
 
+  function toggleRecibos(id){
+    const on = document.getElementById('porprod-'+id).checked;
+    document.querySelectorAll('.rp-'+id).forEach(el=>{ el.style.display = on ? '' : 'none'; });
+    document.getElementById('recibo-'+id).style.display = on ? 'none' : '';
+  }
+
   async function aprobar(id){
-    const recibo = document.getElementById('recibo-'+id).value.trim();
     const pago = document.getElementById('pago-'+id).checked;
+    const porProd = document.getElementById('porprod-'+id).checked;
     const msg = document.getElementById('pendMsg');
-    if(!recibo){ msg.innerHTML='<div class="msg msg-err">Falta el número de recibo del expediente #'+id+'.</div>'; return; }
+    let recibo = '', recibos = null;
+    if(porProd){
+      recibos = [];
+      let falta = false;
+      document.querySelectorAll('input[id^="recibo-p-'+id+'-"]').forEach(inp=>{
+        const v = inp.value.trim(); if(!v) falta = true; recibos.push(v);
+      });
+      if(falta || recibos.length===0){ msg.innerHTML='<div class="msg msg-err">Escribe el recibo de CADA productor del expediente #'+id+'.</div>'; return; }
+    } else {
+      recibo = document.getElementById('recibo-'+id).value.trim();
+      if(!recibo){ msg.innerHTML='<div class="msg msg-err">Falta el número de recibo del expediente #'+id+'.</div>'; return; }
+    }
     msg.innerHTML='<div class="msg" style="color:var(--muted)">Procesando...</div>';
     try {
-      const res = await Backend.aprobarExpediente(id, recibo, pago);
+      const res = await Backend.aprobarExpediente(id, recibo, pago, recibos);
       if(res.status==='success'){
         msg.innerHTML='<div class="msg msg-ok">✅ Expediente #'+id+' aprobado. Ya tiene los CUIA asignados (ve a "Entrega IPSA").</div>';
         cargarPendientes();
@@ -212,10 +231,10 @@
         if(p.entregado) return '';
         return `<div class="ipsa-card">
           <div class="ipsa-grid">
-            ${item('Documento (Recibo)',e.recibo)}
+            ${item('Documento (Recibo)', p.recibo || e.recibo)}
             ${item('CUPA (productor)',p.cupa)}
             ${item('Técnico / Habilitado',e.habilitadoNumero)}
-            ${item('CUE',p.cue)}
+            ${e.categoria==='OPERADORES' ? '' : item('CUE',p.cue)}
             ${item('CUIA inicial',p.cuiaInicial)}
             ${item('CUIA final',p.cuiaFinal)}
             ${item('Cantidad',p.cantidad)}
@@ -265,7 +284,7 @@
     const fISO = f ? f.split('-').reverse().join('/') : '';
     const rows = cacheHist.filter(e=>
       (e.habilitadoNombre||'').toLowerCase().includes(n) &&
-      (e.recibo||'').toLowerCase().includes(r) &&
+      ((e.recibo||'').toLowerCase().includes(r) || e.productores.some(p=>(p.recibo||'').toLowerCase().includes(r))) &&
       (!fISO || e.fecha===fISO) &&
       (!prod || e.productores.some(p=>
         (p.nombre||'').toLowerCase().includes(prod) || (p.cupa||'').toLowerCase().includes(prod)))
@@ -287,15 +306,16 @@
     const filas = e.productores.map(p=>`
       <tr>
         <td>${p.nombre||'-'}<br><small class="hint mono">${p.cupa||''}</small></td>
-        <td>${p.cue||'-'}</td>
+        <td>${e.categoria==='OPERADORES' ? '—' : (p.cue||'-')}</td>
         <td>${p.cantidad}</td>
         <td class="mono">${p.cuiaInicial? p.cuiaInicial+'–'+p.cuiaFinal : '—'}</td>
+        <td>${p.recibo || e.recibo || '—'}</td>
         <td>${p.entregado?'<span class="badge b-ent">Sí</span>':'<span class="badge b-pag">No</span>'}</td>
       </tr>`).join('');
     document.getElementById('modalBody').innerHTML = `
       <p style="color:var(--muted);font-size:.82rem;text-align:center;margin-top:0">
         ${e.categoria} · ${e.fecha} · Habilitado ${e.habilitadoNumero} — ${e.habilitadoNombre}</p>
-      <table><thead><tr><th>Productor</th><th>CUE</th><th>Cant.</th><th>CUIA</th><th>Entregado</th></tr></thead>
+      <table><thead><tr><th>Productor</th><th>CUE</th><th>Cant.</th><th>CUIA</th><th>Recibo</th><th>Entregado</th></tr></thead>
         <tbody>${filas}</tbody></table>
       <div style="text-align:right;margin-top:10px"><small class="hint">Total: </small><b style="color:var(--success)">C$ ${e.total.toLocaleString()}</b></div>`;
     document.getElementById('modalDetalle').classList.add('show');

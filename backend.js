@@ -50,7 +50,7 @@
     crearExpediente:           (datos)                  => post({ tipo: "crearExpediente", datos }),
     getExpedientesDeHabilitado:(numero)                 => get("expedientesHabilitado", { numero }),
     getPendientes:             ()                       => get("pendientes"),
-    aprobarExpediente:         (id, recibo, controlPago)=> post({ tipo: "aprobar", id, recibo, controlPago }),
+    aprobarExpediente:         (id, recibo, controlPago, recibos)=> post({ tipo: "aprobar", id, recibo, controlPago, recibos }),
     getConfirmados:            ()                       => get("confirmados"),
     marcarProductorEntregado:  (expedienteId, indice, entregado) => post({ tipo: "marcarEntregado", expedienteId, indice, entregado })
   };
@@ -144,18 +144,27 @@
     async getPendientes() {
       return cargar().expedientes.filter(e => e.estado === "PENDIENTE_PAGO").sort((a, b) => a.id - b.id);
     },
-    async aprobarExpediente(id, recibo, controlPago) {
+    async aprobarExpediente(id, recibo, controlPago, recibos) {
       const db = cargar();
       const exp = db.expedientes.find(e => e.id === Number(id));
       if (!exp) return { status: "error", message: "Expediente no encontrado" };
       if (exp.estado !== "PENDIENTE_PAGO") return { status: "error", message: "El expediente ya fue procesado" };
-      if (!recibo) return { status: "error", message: "Falta el número de recibo (DOCUMENTO)" };
+      const porProd = Array.isArray(recibos) && recibos.length > 0;
+      if (!recibo && !porProd) return { status: "error", message: "Falta el número de recibo (DOCUMENTO)" };
+      if (porProd) {
+        if (recibos.length !== exp.productores.length) return { status: "error", message: "Debe haber un recibo por cada productor" };
+        if (recibos.some(r => !String(r || "").trim())) return { status: "error", message: "Falta el recibo de uno o más productores" };
+      }
       const disp = disponible(db);
       if (exp.totalAretes > disp) return { status: "error", message: "El lote no alcanza (disponible: " + disp + ", requiere: " + exp.totalAretes + ")" };
       let cursor = db.config.cuiaSiguiente;
-      exp.productores.forEach(p => { p.cuiaInicial = cursor; p.cuiaFinal = cursor + p.cantidad - 1; cursor = p.cuiaFinal + 1; });
+      exp.productores.forEach((p, i) => {
+        p.cuiaInicial = cursor; p.cuiaFinal = cursor + p.cantidad - 1; cursor = p.cuiaFinal + 1;
+        p.recibo = porProd ? String(recibos[i]).trim() : "";
+      });
       db.config.cuiaSiguiente = cursor;
-      exp.recibo = String(recibo).trim(); exp.controlPago = !!controlPago; exp.estado = "PAGADO"; exp.fechaAprobacion = hoyISO();
+      exp.recibo = porProd ? [...new Set(recibos.map(r => String(r).trim()))].join(", ") : String(recibo).trim();
+      exp.controlPago = !!controlPago; exp.estado = "PAGADO"; exp.fechaAprobacion = hoyISO();
       guardar(db);
       return { status: "success" };
     },
