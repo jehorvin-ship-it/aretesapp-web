@@ -147,7 +147,22 @@
   .pline .pl-r{text-align:right;flex:none;}
   .pline .pl-r .qt{font-size:1rem;font-weight:600;}
   .pline .pl-r .cu{font-size:.84rem;color:var(--primary);font-family:monospace;margin-top:2px;}
-  .exp .efoot{display:flex;justify-content:flex-end;gap:8px;align-items:baseline;margin-top:12px;padding-top:14px;border-top:1px solid var(--line);}
+  .exp .efoot{display:flex;justify-content:flex-end;gap:8px;align-items:center;margin-top:12px;padding-top:14px;border-top:1px solid var(--line);}
+  .pline-btn{cursor:pointer;border-radius:10px;margin:0 -6px;padding-left:6px;padding-right:6px;}
+  .pline-btn:active{background:rgba(0,210,255,.07);}
+  .p-sub-line{color:var(--success);font-weight:700;}
+  .btn-edit{margin-right:auto;background:rgba(0,210,255,.1);border:1px solid rgba(0,210,255,.35);color:var(--primary);
+            padding:9px 16px;border-radius:12px;font-weight:700;font-size:.85rem;cursor:pointer;}
+  .btn-edit:active{background:rgba(0,210,255,.2);}
+  /* modal detalle de productor */
+  .pmodal{position:fixed;inset:0;background:rgba(4,8,16,.88);display:none;justify-content:center;align-items:center;z-index:200;padding:18px;}
+  .pmodal.show{display:flex;}
+  .pmodal-c{background:var(--card);border:1px solid rgba(0,210,255,.3);border-radius:20px;padding:22px;width:100%;max-width:420px;max-height:86vh;overflow-y:auto;}
+  .pmodal-c h3{color:var(--primary);margin:0 0 14px;font-size:1.1rem;text-align:center;}
+  .dato{display:flex;justify-content:space-between;gap:12px;padding:11px 12px;background:var(--bg2);border-radius:11px;margin-bottom:8px;border-left:3px solid var(--primary);}
+  .dato .dk{color:var(--muted);font-size:.8rem;flex:none;padding-top:2px;}
+  .dato .dv{font-weight:700;text-align:right;word-break:break-word;font-size:.95rem;}
+  .dato .dv.mono{font-family:monospace;color:var(--primary);}
   .exp .efoot b{color:var(--success);font-size:1.25rem;}
   .empty{text-align:center;color:var(--muted);padding:50px 20px;font-size:1rem;}
   .empty .em-ico{font-size:2.8rem;opacity:.5;margin-bottom:8px;}
@@ -222,6 +237,7 @@
   <main>
     <!-- NUEVA -->
     <section id="viewNueva">
+      <div id="editBanner"></div>
       <h2 class="sec">Nueva solicitud</h2>
       <div class="card">
         <div class="field-lbl">Categoría de entrega</div>
@@ -252,13 +268,21 @@
     </section>
   </main>
 
+  <div id="prodModal" class="pmodal" onclick="if(event.target===this)cerrarProdModal()">
+    <div class="pmodal-c">
+      <h3 id="pmTitulo">Detalle del productor</h3>
+      <div id="pmBody"></div>
+      <button class="btn-primary" style="margin-top:6px" onclick="cerrarProdModal()">CERRAR</button>
+    </div>
+  </div>
+
   <nav class="bottomnav">
     <button id="navNueva" class="on" onclick="verTab('nueva')"><span class="bi">＋</span>Nueva<span class="dot"></span></button>
     <button id="navMis" onclick="verTab('mis')"><span class="bi">🗂</span>Expedientes<span class="dot"></span></button>
   </nav>
 </div>
 
-<script src="backend.js?v=4"></script>
+<script src="backend.js?v=5"></script>
 <script>
   /* ---- Bloqueo de zoom ----
      El pellizco queda bloqueado por el viewport (user-scalable=no) y el
@@ -282,6 +306,8 @@
   let habilitadoActual = null;
   let PRECIO = 0;
   let categoria = 'PRODUCTORES';
+  let cacheMis = [];      // expedientes del habilitado (para modal y edición)
+  let editandoId = null;  // expediente en edición (null = creando)
 
   /* ---------- LOGIN ---------- */
   document.getElementById('inPin').addEventListener('keydown', e=>{ if(e.key==='Enter') hacerLogin(); });
@@ -417,15 +443,22 @@
     const msg=document.getElementById('nuevoMsg'); const btn=document.getElementById('btnEnviar');
     if(prods.length===0){ msg.innerHTML='<div class="msg msg-err">Agrega al menos un productor con cantidad.</div>'; return; }
     if(prods.some(p=>!p.nombre)){ msg.innerHTML='<div class="msg msg-err">Cada productor necesita un nombre.</div>'; return; }
-    btn.disabled=true; msg.innerHTML='<div class="msg msg-load">Enviando…</div>';
+    btn.disabled=true; msg.innerHTML='<div class="msg msg-load">'+(editandoId?'Guardando cambios…':'Enviando…')+'</div>';
     try{
-      const res=await Backend.crearExpediente({
+      const datos={
         categoria, fecha:fmtFecha(document.getElementById('inFecha').value),
         habilitadoNumero:habilitadoActual.numero, habilitadoNombre:habilitadoActual.nombre, productores:prods
-      });
+      };
+      const res = editandoId
+        ? await Backend.actualizarExpediente(editandoId, datos)
+        : await Backend.crearExpediente(datos);
       if(res.status==='success'){
+        const eraEdicion = !!editandoId;
+        salirModoEdicion();
         initNuevo(); refrescarDisponible();
-        msg.innerHTML='<div class="msg msg-ok">✅ Solicitud enviada. Pasa a caja a pagar y lleva el recibo al digitador.</div>';
+        msg.innerHTML = eraEdicion
+          ? '<div class="msg msg-ok">✅ Expediente actualizado correctamente.</div>'
+          : '<div class="msg msg-ok">✅ Solicitud enviada. Pasa a caja a pagar y lleva el recibo al digitador.</div>';
         window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
       }else{ msg.innerHTML='<div class="msg msg-err">'+res.message+'</div>'; }
     }catch(e){ msg.innerHTML='<div class="msg msg-err">Error de conexión al enviar.</div>'; }
@@ -441,24 +474,90 @@
     try{ lista=await Backend.getExpedientesDeHabilitado(habilitadoActual.numero); }
     catch(e){ cont.innerHTML='<div class="empty">Error de conexión.</div>'; return; }
     if(lista.length===0){ cont.innerHTML='<div class="empty"><div class="em-ico">🗂</div><p>Aún no tienes expedientes.</p></div>'; return; }
+    cacheMis = lista;
     cont.innerHTML=lista.map(e=>{
       const pill = e.estado==='PENDIENTE_PAGO'?'<span class="pill pill-pend">Pendiente de pago</span>'
                  : e.estado==='PAGADO'?'<span class="pill pill-pag">En proceso</span>'
                  : '<span class="pill pill-ent">Entregado</span>';
-      const lineas=e.productores.map(p=>`
-        <div class="pline">
+      const pu = e.totalAretes>0 ? e.total/e.totalAretes : PRECIO; // precio unitario del expediente
+      const lineas=e.productores.map((p,i)=>`
+        <div class="pline pline-btn" onclick="verProd(${e.id},${i})">
           <div class="pl-l"><div class="nm">${p.nombre||'—'}</div><div class="cp">${p.cupa||''}</div></div>
-          <div class="pl-r"><div class="qt">${p.cantidad} aretes</div>
+          <div class="pl-r">
+            <div class="qt">${p.cantidad} aretes · <span class="p-sub-line">C$ ${(p.cantidad*pu).toLocaleString()}</span></div>
             <div class="cu">${p.cuiaInicial? p.cuiaInicial+'–'+p.cuiaFinal : 'CUIA por asignar'}</div>
-            ${p.recibo?'<div class="cp">Recibo '+p.recibo+'</div>':''}</div>
+            ${p.recibo?'<div class="cp">Recibo '+p.recibo+'</div>':''}
+          </div>
         </div>`).join('');
+      const btnEditar = e.estado==='PENDIENTE_PAGO'
+        ? `<button class="btn-edit" onclick="editarExpediente(${e.id})">✎ Editar</button>` : '';
       return `<div class="exp">
         <div class="ehead"><div><b>Expediente #${e.id}</b><br><small>${e.categoria} · ${e.fecha}${e.recibo?' · Recibo '+e.recibo:''}</small></div>${pill}</div>
         ${lineas}
-        <div class="efoot"><span class="muted" style="font-size:.85rem">Total</span> <b>C$ ${e.total.toLocaleString()}</b></div>
+        <div class="efoot">${btnEditar}<span class="muted" style="font-size:.85rem">Total</span> <b>C$ ${e.total.toLocaleString()}</b></div>
       </div>`;
     }).join('');
   }
+
+  /* ---------- MODAL: todos los datos del productor ---------- */
+  function verProd(expId, idx){
+    const e = cacheMis.find(x=>x.id===expId); if(!e) return;
+    const p = e.productores[idx]; if(!p) return;
+    const pu = e.totalAretes>0 ? e.total/e.totalAretes : PRECIO;
+    const estadoTxt = e.estado==='PENDIENTE_PAGO' ? 'Pendiente de pago' : e.estado==='PAGADO' ? 'En proceso' : 'Entregado';
+    const dato=(k,v,mono)=>`<div class="dato"><span class="dk">${k}</span><span class="dv${mono?' mono':''}">${v}</span></div>`;
+    document.getElementById('pmTitulo').textContent = 'Expediente #'+e.id+' · Productor '+(idx+1);
+    document.getElementById('pmBody').innerHTML =
+      dato('Nombre completo', p.nombre||'—') +
+      dato('CUPA', p.cupa||'—', true) +
+      (e.categoria==='OPERADORES' ? dato('CUE','No aplica (Operadores)') : dato('CUE', p.cue||'—', true)) +
+      dato('Categoría', e.categoria) +
+      dato('Cantidad', p.cantidad+' aretes') +
+      dato('Subtotal', 'C$ '+(p.cantidad*pu).toLocaleString()) +
+      dato('CUIA asignado', p.cuiaInicial? p.cuiaInicial+' – '+p.cuiaFinal : 'Por asignar', true) +
+      dato('Recibo', p.recibo || e.recibo || 'Pendiente') +
+      dato('Entregado en IPSA', p.entregado ? 'Sí ✓' : 'Todavía no') +
+      dato('Estado del expediente', estadoTxt);
+    document.getElementById('prodModal').classList.add('show');
+  }
+  function cerrarProdModal(){ document.getElementById('prodModal').classList.remove('show'); }
+
+  /* ---------- EDICIÓN (solo Pendiente de Pago) ---------- */
+  function editarExpediente(id){
+    const e = cacheMis.find(x=>x.id===id); if(!e) return;
+    if(e.estado!=='PENDIENTE_PAGO'){ alert('Solo se puede editar mientras está Pendiente de Pago.'); return; }
+    editandoId = id;
+    // categoría
+    categoria = e.categoria || 'PRODUCTORES';
+    document.querySelectorAll('#segCat button').forEach(b=>b.classList.toggle('on', b.dataset.v===categoria));
+    // fecha dd/mm/aaaa -> aaaa-mm-dd
+    const m = String(e.fecha).match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    const h = new Date();
+    document.getElementById('inFecha').value = m ? (m[3]+'-'+m[2]+'-'+m[1])
+      : h.getFullYear()+'-'+String(h.getMonth()+1).padStart(2,'0')+'-'+String(h.getDate()).padStart(2,'0');
+    // productores
+    const cont=document.getElementById('prodContainer'); cont.innerHTML='';
+    e.productores.forEach(p=>{
+      agregarFilaProd();
+      const card=cont.lastElementChild;
+      card.querySelector('.p-cupa').value = p.cupa||'';
+      card.querySelector('.p-nombre').value = p.nombre||'';
+      card.querySelector('.p-cue').value = p.cue||'';
+      card.querySelector('.p-cant').value = p.cantidad||'';
+    });
+    aplicarModoCategoria(); recalcular();
+    document.getElementById('btnEnviar').textContent='GUARDAR CAMBIOS';
+    document.getElementById('editBanner').innerHTML =
+      '<div class="msg" style="background:rgba(0,210,255,.1);color:var(--primary);border:1px solid rgba(0,210,255,.35)">✎ Editando el expediente #'+id+'&nbsp;·&nbsp;<a href="#" onclick="cancelarEdicion();return false" style="color:#fca5a5;font-weight:700">Cancelar</a></div>';
+    document.getElementById('nuevoMsg').innerHTML='';
+    verTab('nueva');
+  }
+  function salirModoEdicion(){
+    editandoId = null;
+    document.getElementById('btnEnviar').textContent='ENVIAR SOLICITUD';
+    document.getElementById('editBanner').innerHTML='';
+  }
+  function cancelarEdicion(){ salirModoEdicion(); initNuevo(); }
 </script>
 </body>
 </html>

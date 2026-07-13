@@ -116,6 +116,15 @@ Estados de un expediente: `PENDIENTE_PAGO` → `PAGADO` (recibo + CUIA asignados
 - **Recibo por productor (opcional):** en Pendientes de Aprobar, marca "Recibo por productor" para
   escribir un recibo distinto a cada productor. Si no lo marcas, funciona como siempre (un recibo para todo
   el expediente). La columna `recibo` de la hoja `Detalle` se crea sola la primera vez que se usa.
+- **Subtotal y detalle por productor:** en "Mis expedientes" cada productor muestra su total en C$;
+  al tocar la línea se abre un modal con TODOS sus datos (nombre completo, CUPA, CUE, cantidad,
+  subtotal, CUIA, recibo, estado de entrega).
+- **Edición de expedientes:** el habilitado puede editar un expediente (productores, cantidades,
+  categoría, fecha) SOLO mientras está "Pendiente de pago". Al aprobarse (Pagado/Entregado) queda bloqueado.
+- **Recibo único registrado por productor:** al aprobar con un solo recibo, ahora también se guarda
+  en la columna `recibo` de cada productor en la hoja `Detalle` (igual que el modo por productor).
+  Para rellenar expedientes viejos, ejecuta una vez la función **`rellenarRecibosFaltantes()`**.
+- **Fechas legibles:** las fechas se muestran siempre como dd/mm/aaaa.
 - **IMPORTANTE:** pega el `Code.gs` nuevo en Apps Script y **redespliega**
   (Implementar → Gestionar implementaciones → ✏ → Nueva versión) para activar estas funciones.
 

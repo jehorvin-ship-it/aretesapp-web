@@ -51,6 +51,7 @@
     getExpedientesDeHabilitado:(numero)                 => get("expedientesHabilitado", { numero }),
     getPendientes:             ()                       => get("pendientes"),
     aprobarExpediente:         (id, recibo, controlPago, recibos)=> post({ tipo: "aprobar", id, recibo, controlPago, recibos }),
+    actualizarExpediente:      (id, datos)              => post({ tipo: "actualizarExpediente", id, datos }),
     getConfirmados:            ()                       => get("confirmados"),
     marcarProductorEntregado:  (expedienteId, indice, entregado) => post({ tipo: "marcarEntregado", expedienteId, indice, entregado })
   };
@@ -138,6 +139,32 @@
       guardar(db);
       return { status: "success", id: exp.id };
     },
+    async actualizarExpediente(id, datos) {
+      const db = cargar();
+      const exp = db.expedientes.find(e => e.id === Number(id));
+      if (!exp) return { status: "error", message: "Expediente no encontrado" };
+      if (exp.estado !== "PENDIENTE_PAGO") return { status: "error", message: "Solo se puede editar un expediente Pendiente de Pago" };
+      const productores = (datos.productores || []).map(p => ({
+        cupa: (p.cupa || "").trim().toUpperCase(), nombre: p.nombre || "", cue: (p.cue || "").trim(),
+        cantidad: Number(p.cantidad) || 0, cuiaInicial: null, cuiaFinal: null, entregado: false, recibo: ""
+      }));
+      if (productores.length === 0) return { status: "error", message: "Agrega al menos un productor" };
+      if (productores.some(p => p.cantidad <= 0)) return { status: "error", message: "Toda cantidad debe ser mayor que 0" };
+      const totalAretes = productores.reduce((s, p) => s + p.cantidad, 0);
+      exp.fecha = datos.fecha || exp.fecha;
+      exp.categoria = datos.categoria || exp.categoria;
+      exp.productores = productores;
+      exp.totalAretes = totalAretes;
+      exp.total = totalAretes * db.config.precio;
+      productores.forEach(p => {
+        if (!p.cupa) return;
+        const k = db.productores.find(x => x.cupa === p.cupa);
+        if (k) { k.nombre = p.nombre; k.cue = p.cue; k.habilitadoNumero = exp.habilitadoNumero; }
+        else db.productores.push({ cupa: p.cupa, nombre: p.nombre, cue: p.cue, habilitadoNumero: exp.habilitadoNumero });
+      });
+      guardar(db);
+      return { status: "success" };
+    },
     async getExpedientesDeHabilitado(numero) {
       return cargar().expedientes.filter(e => String(e.habilitadoNumero) === String(numero)).sort((a, b) => b.id - a.id);
     },
@@ -160,7 +187,7 @@
       let cursor = db.config.cuiaSiguiente;
       exp.productores.forEach((p, i) => {
         p.cuiaInicial = cursor; p.cuiaFinal = cursor + p.cantidad - 1; cursor = p.cuiaFinal + 1;
-        p.recibo = porProd ? String(recibos[i]).trim() : "";
+        p.recibo = porProd ? String(recibos[i]).trim() : String(recibo).trim();
       });
       db.config.cuiaSiguiente = cursor;
       exp.recibo = porProd ? [...new Set(recibos.map(r => String(r).trim()))].join(", ") : String(recibo).trim();

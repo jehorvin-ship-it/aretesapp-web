@@ -55,6 +55,7 @@ function doPost(e) {
     switch (body.tipo) {
       case 'crearExpediente':  return json(crearExpediente(body.datos));
       case 'aprobar':          return json(aprobarExpediente(body.id, body.recibo, body.controlPago, body.recibos));
+      case 'actualizarExpediente': return json(actualizarExpediente(body.id, body.datos));
       case 'marcarEntregado':  return json(marcarProductorEntregado(body.expedienteId, body.indice, body.entregado));
       case 'saveConfig':       return json(saveConfig(body));
       default:                 return json({ status: 'error', message: 'Operación POST no reconocida: ' + body.tipo });
@@ -175,7 +176,7 @@ function armarExpediente(e, detallePorExp) {
   var prods = (detallePorExp[e.id] || []).sort(function (a, b) { return Number(a.idx) - Number(b.idx); });
   return {
     id: Number(e.id),
-    fecha: String(e.fecha),
+    fecha: fechaLegible(e.fecha),
     categoria: e.categoria,
     habilitadoNumero: String(e.habilitadoNumero),
     habilitadoNombre: e.habilitadoNombre,
@@ -184,7 +185,7 @@ function armarExpediente(e, detallePorExp) {
     controlPago: esVerdadero(e.controlPago),
     totalAretes: Number(e.totalAretes) || 0,
     total: Number(e.total) || 0,
-    fechaAprobacion: String(e.fechaAprobacion || ''),
+    fechaAprobacion: fechaLegible(e.fechaAprobacion),
     productores: prods.map(function (p) {
       return {
         cupa: String(p.cupa || ''),
@@ -271,6 +272,57 @@ function crearExpediente(datos) {
   }
 }
 
+// ---- Editar expediente (solo mientras está PENDIENTE_PAGO) ---------
+function actualizarExpediente(id, datos) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    id = Number(id);
+    var shExp = hoja(SH.EXPEDIENTES);
+    var exp = leerObjetos(SH.EXPEDIENTES).filter(function (e) { return Number(e.id) === id; })[0];
+    if (!exp) return { status: 'error', message: 'Expediente no encontrado' };
+    if (exp.estado !== 'PENDIENTE_PAGO') return { status: 'error', message: 'Solo se puede editar un expediente Pendiente de Pago' };
+
+    var cfg = getConfig();
+    var prods = (datos.productores || []).map(function (p) {
+      return {
+        cupa: String(p.cupa || '').trim().toUpperCase(),
+        nombre: p.nombre || '',
+        cue: String(p.cue || '').trim(),
+        cantidad: Number(p.cantidad) || 0
+      };
+    });
+    if (prods.length === 0) return { status: 'error', message: 'Agrega al menos un productor' };
+    if (prods.some(function (p) { return p.cantidad <= 0; })) return { status: 'error', message: 'Toda cantidad debe ser mayor que 0' };
+
+    var totalAretes = prods.reduce(function (s, p) { return s + p.cantidad; }, 0);
+    var total = totalAretes * cfg.precio;
+
+    // Actualiza la fila del expediente: fecha(2) categoria(3) totalAretes(9) total(10)
+    shExp.getRange(exp._fila, 2).setValue(datos.fecha || fechaLegible(exp.fecha));
+    shExp.getRange(exp._fila, 3).setValue(datos.categoria || exp.categoria);
+    shExp.getRange(exp._fila, 9).setValue(totalAretes);
+    shExp.getRange(exp._fila, 10).setValue(total);
+
+    // Reemplaza el detalle: borra las filas viejas (de abajo hacia arriba) y agrega las nuevas
+    var shDet = hoja(SH.DETALLE);
+    var viejas = leerObjetos(SH.DETALLE)
+      .filter(function (d) { return Number(d.expedienteId) === id; })
+      .map(function (d) { return d._fila; })
+      .sort(function (a, b) { return b - a; });
+    viejas.forEach(function (f) { shDet.deleteRow(f); });
+
+    prods.forEach(function (p, i) {
+      shDet.appendRow([id, i, p.cupa, p.nombre, p.cue, p.cantidad, '', '', 'FALSE', '']);
+      upsertProductor(p.cupa, p.nombre, p.cue, exp.habilitadoNumero);
+    });
+
+    return { status: 'success' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 // ---- Aprobar: asigna CUIA por productor y descuenta lote -----------
 function aprobarExpediente(id, recibo, controlPago, recibos) {
   var lock = LockService.getScriptLock();
@@ -315,7 +367,7 @@ function aprobarExpediente(id, recibo, controlPago, recibos) {
       var ini = cursor;
       var fin = cursor + cant - 1;
       shDet.getRange(d._fila, 7, 1, 2).setValues([[ini, fin]]); // cols cuiaInicial, cuiaFinal
-      shDet.getRange(d._fila, 10).setValue(porProd ? String(recibos[i]).trim() : '');
+      shDet.getRange(d._fila, 10).setValue(porProd ? String(recibos[i]).trim() : String(recibo).trim());
       cursor = fin + 1;
     });
 
@@ -373,6 +425,11 @@ function marcarProductorEntregado(expedienteId, indice, entregado) {
 // =====================================================================
 //  FECHA
 // =====================================================================
+function fechaLegible(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'dd/MM/yyyy');
+  return String(v || '');
+}
+
 function fechaHoy() {
   var d = new Date();
   var dd = ('0' + d.getDate()).slice(-2);
@@ -452,6 +509,26 @@ function configurarOperadora() {
   shH.getRange(2, 4, lista.length, 1).setNumberFormat('@'); // pin
 
   Logger.log('Listo: Config verificado y ' + lista.length + ' habilitados cargados.');
+}
+
+// Ejecutar UNA vez (opcional) para rellenar el recibo en filas de Detalle
+// de expedientes viejos aprobados con recibo único.
+function rellenarRecibosFaltantes() {
+  var shDet = hoja(SH.DETALLE);
+  if (String(shDet.getRange(1, 10).getValue()) !== 'recibo') {
+    shDet.getRange(1, 10).setValue('recibo').setFontWeight('bold');
+  }
+  var exps = {};
+  leerObjetos(SH.EXPEDIENTES).forEach(function (e) { exps[Number(e.id)] = String(e.recibo || ''); });
+  var n = 0;
+  leerObjetos(SH.DETALLE).forEach(function (d) {
+    if (String(d.recibo || '')) return;               // ya tiene
+    var er = exps[Number(d.expedienteId)] || '';
+    if (er && er.indexOf(',') === -1) {               // recibo único del expediente
+      shDet.getRange(d._fila, 10).setValue(er); n++;
+    }
+  });
+  Logger.log('Recibos rellenados en ' + n + ' filas.');
 }
 
 function crearHoja(ss, nombre, headers, filas) {
