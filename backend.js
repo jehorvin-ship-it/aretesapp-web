@@ -56,13 +56,18 @@
     marcarProductorEntregado:  (expedienteId, indice, entregado) => post({ tipo: "marcarEntregado", expedienteId, indice, entregado }),
     estadoCue:                 (cue)                    => get("estadoCue", { cue }),
     getCues:                   ()                       => get("cues"),
-    guardarCue:                (d)                      => post({ tipo: "guardarCue", cue: d.cue, nombre: d.nombre, areaBovino: d.areaBovino, bovinos: d.bovinos, fechaDato: d.fechaDato })
+    guardarCue:                (d)                      => post({ tipo: "guardarCue", cue: d.cue, nombre: d.nombre, areaBovino: d.areaBovino, bovinos: d.bovinos, fechaDato: d.fechaDato }),
+    solicitarCue:              (cue, hab)               => post({ tipo: "solicitarCue", cue, habilitadoNumero: hab }),
+    resultadoCue:              (jobId)                  => get("resultadoCue", { jobId }),
+    trabajosPendientes:        ()                       => get("trabajosPendientes"),
+    entregarResultadoCue:      (jobId, datos)           => post({ tipo: "entregarResultadoCue", jobId, datos })
   };
 
   // =================================================================
   //  MODO LOCAL  (localStorage) — misma interfaz, resuelta con Promesas
   // =================================================================
   const DB_KEY = "aretesapp_db_v1";
+  const _colaLocal = {}; // simula la cola del relay en modo local
 
   function datosSemilla() {
     return {
@@ -263,6 +268,22 @@
                capacidad, bovinosIpsa: bovinos, fechaDato: reg.fechaDato, entregadosDespues: entregados,
                estimado, disponibles, porcentaje: pct, estado, datoViejo: viejo };
     },
+    async solicitarCue(cue, hab) {
+      const cache = await this.estadoCue(cue);
+      const jobId = "local-" + Math.random().toString(36).slice(2);
+      _colaLocal[jobId] = { cue };
+      return { status: "ok", jobId, cache };
+    },
+    async resultadoCue(jobId) {
+      const j = _colaLocal[jobId];
+      if (!j) return { status: "expirado" };
+      const datos = await this.estadoCue(j.cue);
+      datos.enVivo = true;
+      delete _colaLocal[jobId];
+      return { status: "listo", datos };
+    },
+    async trabajosPendientes() { return []; },
+    async entregarResultadoCue() { return { status: "success" }; },
     // utilidades de prototipo local
     _reset() { const db = datosSemilla(); guardar(db); return db; },
     _dump() { return cargar(); }

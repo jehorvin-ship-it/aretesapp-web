@@ -154,6 +154,24 @@ la fecha del dato**. Semáforo: verde disponible · ámbar casi lleno (umbral co
 > El factor 1.5 no está en la normativa publicada del IPSA (es criterio operativo); por eso es
 > configurable en la pestaña Configuración. Si el IPSA lo confirma distinto, lo cambias sin tocar código.
 
+### Consulta EN VIVO (relay) + respaldo caché
+
+Ahora la consulta de Estado CUE del habilitado trae el dato **en tiempo real del SNITB**:
+
+1. El habilitado consulta un CUE en su app → el pedido se encola en el Apps Script (hoja `ColaCue`,
+   se crea sola).
+2. En tu navegador, con el bot abierto en `trazabilidad.ipsa.gob.ni`, activa el interruptor
+   **🛡️ Modo de guardia**. El bot revisa la cola cada pocos segundos, busca ese CUE en el SNITB con TU
+   sesión y devuelve el dato. El habilitado lo ve con la banda verde **"● Datos en vivo del SNITB"**.
+3. De paso, cada consulta en vivo se **cachea** en la hoja `CUES`. Así, si el bot NO está de guardia,
+   el habilitado igual ve el **último dato real** con su fecha y el aviso "no se pudo actualizar en vivo".
+   Si nunca se consultó ese CUE y el bot está apagado, ve "el puente no está disponible".
+
+**Requisito:** tené el bot abierto y el **Modo de guardia activado** en horario de oficina (cuando los
+habilitados consultan). Cada consulta toca UN solo CUE (buscar + abrir ficha), así que no satura el SNITB.
+Fuera de horario, el respaldo caché cubre. El bot solo LEE del SNITB; nunca escribe ahí.
+
+
 ## Solución de problemas
 
 - **El scroll solo funciona con 2 dedos / la app se ve como una versión vieja:** el celular está

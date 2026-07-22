@@ -313,7 +313,7 @@
   </nav>
 </div>
 
-<script src="backend.js?v=6"></script>
+<script src="backend.js?v=7"></script>
 <script>
   /* ---- Bloqueo de zoom ----
      El pellizco queda bloqueado por el viewport (user-scalable=no) y el
@@ -518,19 +518,44 @@
       : '';
   }
 
+  const sleep = ms => new Promise(res=>setTimeout(res,ms));
   async function consultarCue(){
     const cue = document.getElementById('cueInput').value.trim();
     const cont = document.getElementById('cueResultado');
     if(!cue){ cont.innerHTML='<div class="msg msg-err">Escribe el CUE a consultar.</div>'; return; }
-    cont.innerHTML='<div class="empty">Consultando…</div>';
-    let r;
-    try{ r = await Backend.estadoCue(cue); }
+    cont.innerHTML='<div class="empty">Consultando el SNITB…</div>';
+    let sol;
+    try{ sol = await Backend.solicitarCue(cue, habilitadoActual.numero); }
     catch(e){ cont.innerHTML='<div class="msg msg-err">Error de conexión.</div>'; return; }
-    ultimoEstadoCue = r;
-    renderEstadoCue(r);
+    const tieneCache = sol.cache && sol.cache.status==='ok';
+    if(tieneCache){ ultimoEstadoCue = sol.cache; renderEstadoCue(sol.cache, 'actualizando'); }
+    else { cont.innerHTML='<div class="empty">Consultando el SNITB en vivo…<br><small>Puede tardar unos segundos.</small></div>'; }
+    if(!sol.jobId){ if(!tieneCache) renderEstadoCue(sol.cache||{status:'sin_datos',cue}, 'cache'); return; }
+    const t0=Date.now(); let vivo=null;
+    while(Date.now()-t0 < 20000){
+      await sleep(1300);
+      let res; try{ res = await Backend.resultadoCue(sol.jobId); }catch(e){ continue; }
+      if(res.status==='listo'){ vivo = res.datos; break; }
+      if(res.status==='error' || res.status==='expirado'){ break; }
+    }
+    if(vivo){ ultimoEstadoCue = vivo; renderEstadoCue(vivo, 'vivo'); }
+    else if(tieneCache){ renderEstadoCue(sol.cache, 'cache_sinvivo'); }
+    else {
+      const c = (sol.cache && sol.cache.cue) ? sol.cache.cue : cue;
+      cont.innerHTML = `<div class="card" style="border-color:rgba(245,158,11,.35)">
+        <div class="cue-head"><b>CUE ${c}</b><span class="pill" style="background:rgba(245,158,11,.15);color:#fcd34d">Sin conexión</span></div>
+        <p class="muted" style="font-size:.9rem">⚠️ El puente con el SNITB no está disponible en este momento (el digitador no está en línea).
+        Intenta de nuevo más tarde, o pídele al digitador que consulte este CUE.</p></div>`;
+    }
   }
 
-  function renderEstadoCue(r){
+  function bandaFuente(modo, r){
+    if(modo==='vivo') return `<div class="cue-accion" style="margin:0 0 12px;background:rgba(16,185,129,.12);color:#6ee7b7;border:1px solid rgba(16,185,129,.35)">● Datos en vivo del SNITB — ahora mismo</div>`;
+    if(modo==='actualizando') return `<div class="cue-accion" style="margin:0 0 12px;background:rgba(0,210,255,.1);color:var(--primary);border:1px solid rgba(0,210,255,.35)">⟳ Último dato del ${r.fechaDato||'—'} — actualizando en vivo…</div>`;
+    if(modo==='cache_sinvivo') return `<div class="cue-accion" style="margin:0 0 12px;background:rgba(245,158,11,.12);color:#fcd34d;border:1px solid rgba(245,158,11,.35)">○ No se pudo actualizar en vivo. Mostrando último dato real: ${r.fechaDato||'—'}.</div>`;
+    return '';
+  }
+  function renderEstadoCue(r, modo){
     const cont = document.getElementById('cueResultado');
     if(r.status==='sin_datos'){
       cont.innerHTML = `<div class="card" style="border-color:rgba(148,163,189,.35)">
@@ -553,6 +578,7 @@
       : `<div class="cue-accion" style="background:rgba(16,185,129,.12);color:#6ee7b7;border:1px solid rgba(16,185,129,.35)">✅ Puede realizar la identificación.</div>`;
     const dato=(k,v)=>`<div class="dato"><span class="dk">${k}</span><span class="dv">${v}</span></div>`;
     cont.innerHTML = `<div class="card" style="border-color:${color}55">
+      ${bandaFuente(modo, r)}
       <div class="cue-head"><div><b>${r.nombre||'Establecimiento'}</b><br><small>CUE ${r.cue}</small></div>
         <span class="pill" style="background:${color}26;color:${color}">${pill}</span></div>
       <div class="gauge"><i style="width:${pct}%;background:${color}"></i></div>

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AretesApp - Bot Puente SNITB
 // @namespace    aretesapp
-// @version      1.0
+// @version      1.1
 // @description  Sincroniza área bovina y existencias de los CUE desde el SNITB (IPSA) hacia la hoja CUES de AretesApp. Corre con TU sesión iniciada; no guarda contraseñas.
 // @match        https://trazabilidad.ipsa.gob.ni/*
 // @grant        none
@@ -123,20 +123,24 @@
         <input id="apCue" placeholder="CUE (ej. 9316044757)" inputmode="numeric">
         <button id="apUno">Sincronizar</button>
       </div>
-      <div style="display:flex;gap:8px;margin-bottom:4px">
+      <div style="display:flex;gap:8px;margin-bottom:8px">
         <button id="apTodos" class="ghost">⟳ Sincronizar TODOS los CUE registrados</button>
       </div>
-      <div class="ap-log" id="apLog">Listo. La sincronización usa tu sesión abierta del SNITB.</div>
-      <div class="ap-mini">Los datos van a la hoja <b>CUES</b> de AretesApp con la fecha de hoy.
-      Cierra el panel con ✕ para detener todo.</div>
+      <label style="display:flex;align-items:center;gap:8px;margin:4px 0 10px;cursor:pointer;font-size:12px;padding:8px;background:#0b1120;border-radius:8px;border:1px solid #ffffff20">
+        <input type="checkbox" id="apGuardia" style="width:auto"> 🛡️ <b>Modo de guardia</b> — atender consultas en vivo de los habilitados
+      </label>
+      <div class="ap-log" id="apLog">Listo. Usa tu sesión abierta del SNITB.</div>
+      <div class="ap-mini">Con el <b>modo de guardia</b> activado, deja esta pestaña abierta: cada vez que un
+      habilitado consulte un CUE en su app, el bot lo busca en el SNITB y le responde en vivo. Cierra con ✕ para detener.</div>
     </div>`;
   document.body.appendChild(panel);
 
   const logEl = panel.querySelector("#apLog");
   let detener = false;
+  let guardiaTimer = null;
   const log = m => { logEl.textContent += "\n" + m; logEl.scrollTop = logEl.scrollHeight; };
 
-  panel.querySelector(".ap-x").onclick = () => { detener = true; panel.remove(); };
+  panel.querySelector(".ap-x").onclick = () => { detener = true; if (guardiaTimer) clearInterval(guardiaTimer); panel.remove(); };
 
   panel.querySelector("#apUno").onclick = async () => {
     const cue = panel.querySelector("#apCue").value.trim();
@@ -159,5 +163,37 @@
       await espera(PAUSA_MS);
     }
     log(`— Fin: ${ok} sincronizados, ${fail} con error —`);
+  };
+
+  /* ---------------- modo de guardia (relay en vivo) ---------------- */
+  async function atenderPendientes() {
+    let jobs = [];
+    try { jobs = await apiGet("trabajosPendientes"); } catch (e) { return; }
+    if (!Array.isArray(jobs) || !jobs.length) return;
+    for (const j of jobs) {
+      try {
+        const fila = await leerFila(j.cue);
+        const areas = await leerAreas(fila.hrefDetalle);
+        if (fila.bovinos === null || areas.areaBovino === null) throw new Error("dato incompleto en el SNITB");
+        await apiPost({ tipo: "entregarResultadoCue", jobId: j.jobId,
+          datos: { cue: digitos(j.cue), nombre: fila.nombre, areaBovino: areas.areaBovino, bovinos: fila.bovinos } });
+        log(`📡 Consulta atendida: ${j.cue} → ${fila.nombre} (${areas.areaBovino} Mz, ${fila.bovinos} bov.)`);
+      } catch (e) {
+        try { await apiPost({ tipo: "entregarResultadoCue", jobId: j.jobId, datos: { cue: digitos(j.cue), error: e.message } }); } catch (_) {}
+        log(`⚠️ Consulta ${j.cue}: ${e.message}`);
+      }
+      await espera(600);
+    }
+  }
+  panel.querySelector("#apGuardia").onchange = (ev) => {
+    if (ev.target.checked) {
+      log("🛡️ Modo de guardia ACTIVADO — atendiendo consultas en vivo. Deja esta pestaña abierta.");
+      atenderPendientes();
+      guardiaTimer = setInterval(atenderPendientes, 4000);
+    } else {
+      if (guardiaTimer) clearInterval(guardiaTimer);
+      guardiaTimer = null;
+      log("⚪ Modo de guardia desactivado.");
+    }
   };
 })();
