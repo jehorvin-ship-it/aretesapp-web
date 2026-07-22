@@ -163,6 +163,22 @@
   .dato .dk{color:var(--muted);font-size:.8rem;flex:none;padding-top:2px;}
   .dato .dv{font-weight:700;text-align:right;word-break:break-word;font-size:.95rem;}
   .dato .dv.mono{font-family:monospace;color:var(--primary);}
+  /* Estado CUE */
+  .cue-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:4px;}
+  .cue-head b{font-size:1.08rem;}
+  .cue-head small{color:var(--muted);font-family:monospace;}
+  .gauge{height:22px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:14px 0 6px;}
+  .gauge i{display:block;height:100%;border-radius:14px;transition:width .5s;min-width:6px;}
+  .gauge-lbl{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);margin-bottom:10px;}
+  .big-disp{font-size:2.1rem;font-weight:800;text-align:center;line-height:1.15;margin:8px 0 2px;}
+  .big-sub{text-align:center;color:var(--muted);font-size:.85rem;margin-bottom:12px;}
+  .cue-accion{padding:13px 14px;border-radius:13px;font-size:.95rem;font-weight:700;text-align:center;margin-top:12px;}
+  .chip-cue{display:inline-block;padding:9px 14px;margin:6px 6px 0 0;background:var(--bg2);border:1px solid var(--line);
+            border-radius:20px;font-size:.82rem;color:var(--text);cursor:pointer;}
+  .chip-cue:active{border-color:var(--primary);color:var(--primary);}
+  .cue-status{font-size:.82rem;font-weight:600;min-height:18px;margin-top:7px;}
+  .dato-viejo{margin-top:10px;padding:10px 12px;border-radius:11px;background:rgba(245,158,11,.1);
+              border:1px solid rgba(245,158,11,.3);color:#fcd34d;font-size:.8rem;}
   .exp .efoot b{color:var(--success);font-size:1.25rem;}
   .empty{text-align:center;color:var(--muted);padding:50px 20px;font-size:1rem;}
   .empty .em-ico{font-size:2.8rem;opacity:.5;margin-bottom:8px;}
@@ -261,6 +277,20 @@
       <div id="nuevoMsg"></div>
     </section>
 
+    <!-- ESTADO CUE -->
+    <section id="viewCue" class="hidden">
+      <h2 class="sec">Estado del establecimiento (CUE)</h2>
+      <div class="card">
+        <div class="field-lbl">Código Único de Establecimiento (CUE)</div>
+        <div style="display:flex;gap:10px">
+          <input id="cueInput" class="inp-sm" placeholder="Ej: 9316044757" inputmode="numeric" autocomplete="off" style="flex:1">
+          <button class="btn-primary" style="width:auto;padding:0 22px" onclick="consultarCue()">Ver</button>
+        </div>
+        <div id="cueChips"></div>
+      </div>
+      <div id="cueResultado"></div>
+    </section>
+
     <!-- MIS EXPEDIENTES -->
     <section id="viewMis" class="hidden">
       <h2 class="sec">Mis expedientes</h2>
@@ -278,11 +308,12 @@
 
   <nav class="bottomnav">
     <button id="navNueva" class="on" onclick="verTab('nueva')"><span class="bi">＋</span>Nueva<span class="dot"></span></button>
+    <button id="navCue" onclick="verTab('cue')"><span class="bi">🏠</span>Estado CUE<span class="dot"></span></button>
     <button id="navMis" onclick="verTab('mis')"><span class="bi">🗂</span>Expedientes<span class="dot"></span></button>
   </nav>
 </div>
 
-<script src="backend.js?v=5"></script>
+<script src="backend.js?v=6"></script>
 <script>
   /* ---- Bloqueo de zoom ----
      El pellizco queda bloqueado por el viewport (user-scalable=no) y el
@@ -338,10 +369,13 @@
   /* ---------- TABS ---------- */
   function verTab(t){
     document.getElementById('viewNueva').classList.toggle('hidden', t!=='nueva');
+    document.getElementById('viewCue').classList.toggle('hidden', t!=='cue');
     document.getElementById('viewMis').classList.toggle('hidden', t!=='mis');
     document.getElementById('navNueva').classList.toggle('on', t==='nueva');
+    document.getElementById('navCue').classList.toggle('on', t==='cue');
     document.getElementById('navMis').classList.toggle('on', t==='mis');
     if(t==='mis') cargarMisExpedientes();
+    if(t==='cue') prepararTabCue();
     window.scrollTo(0,0);
   }
 
@@ -387,7 +421,8 @@
       <div class="grid2" style="margin-top:12px">
         <div class="cue-wrap">
           <div class="field-lbl">CUE</div>
-          <input class="inp-sm p-cue" placeholder="558" inputmode="numeric" autocomplete="off">
+          <input class="inp-sm p-cue" placeholder="558" inputmode="numeric" autocomplete="off" onblur="chequearCueProd(this)">
+          <div class="cue-status"></div>
         </div>
         <div>
           <div class="field-lbl">Cantidad</div>
@@ -416,7 +451,8 @@
     try{
       const p=await Backend.buscarProductor(val);
       if(p){ card.querySelector('.p-nombre').value=p.nombre; card.querySelector('.p-cue').value=p.cue;
-             look.className='lookup ok'; look.textContent='✓ '+p.nombre; }
+             look.className='lookup ok'; look.textContent='✓ '+p.nombre;
+             chequearCueProd(card.querySelector('.p-cue')); }
       else { look.className='lookup new'; look.textContent = categoria==='OPERADORES' ? 'Productor nuevo — completa el nombre' : 'Productor nuevo — completa nombre y CUE'; }
     }catch(e){ look.textContent=''; }
   }
@@ -465,6 +501,107 @@
     btn.disabled=false;
   }
   function fmtFecha(iso){ if(!iso) return ''; const p=iso.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+
+  /* ---------- ESTADO CUE ---------- */
+  let ultimoEstadoCue = null;
+  const CUE_COLORES = { DISPONIBLE:'#10b981', CASI_LLENO:'#f59e0b', LLENO:'#ef4444', SIN_DATOS:'#94a3b8' };
+
+  async function prepararTabCue(){
+    // chips con los CUE que el habilitado ya ha usado
+    try{
+      if(!cacheMis.length) cacheMis = await Backend.getExpedientesDeHabilitado(habilitadoActual.numero);
+    }catch(e){}
+    const usados = [...new Set(cacheMis.flatMap(e=>e.productores.map(p=>String(p.cue||'').trim())).filter(Boolean))];
+    document.getElementById('cueChips').innerHTML = usados.length
+      ? '<div class="field-lbl" style="margin-top:12px">Tus CUE recientes</div>' +
+        usados.slice(0,8).map(c=>`<span class="chip-cue" onclick="document.getElementById('cueInput').value='${c}';consultarCue()">${c}</span>`).join('')
+      : '';
+  }
+
+  async function consultarCue(){
+    const cue = document.getElementById('cueInput').value.trim();
+    const cont = document.getElementById('cueResultado');
+    if(!cue){ cont.innerHTML='<div class="msg msg-err">Escribe el CUE a consultar.</div>'; return; }
+    cont.innerHTML='<div class="empty">Consultando…</div>';
+    let r;
+    try{ r = await Backend.estadoCue(cue); }
+    catch(e){ cont.innerHTML='<div class="msg msg-err">Error de conexión.</div>'; return; }
+    ultimoEstadoCue = r;
+    renderEstadoCue(r);
+  }
+
+  function renderEstadoCue(r){
+    const cont = document.getElementById('cueResultado');
+    if(r.status==='sin_datos'){
+      cont.innerHTML = `<div class="card" style="border-color:rgba(148,163,189,.35)">
+        <div class="cue-head"><b>CUE ${r.cue}</b><span class="pill" style="background:rgba(148,163,189,.15);color:#cbd5e1">Sin datos</span></div>
+        <p class="muted" style="font-size:.9rem">Este establecimiento aún no está registrado en la base de la operadora.
+        Pídele al digitador que lo agregue (se sincroniza desde el SNITB).</p></div>`;
+      return;
+    }
+    const color = CUE_COLORES[r.estado];
+    const pct = Math.min(100, r.porcentaje);
+    const pill = r.estado==='DISPONIBLE' ? 'Disponible' : r.estado==='CASI_LLENO' ? 'Casi lleno' : r.estado==='LLENO' ? 'LLENO' : 'Sin datos';
+    const bigTxt = r.estado==='LLENO' ? 'LLENO' : r.disponibles.toLocaleString();
+    const bigSub = r.estado==='LLENO'
+      ? (r.disponibles<0 ? 'Sobrepasado por '+Math.abs(r.disponibles).toLocaleString()+' bovinos' : 'Sin espacios disponibles')
+      : 'espacios disponibles para identificar';
+    const accion = r.estado==='LLENO'
+      ? `<div class="cue-accion" style="background:rgba(239,68,68,.13);color:#fca5a5;border:1px solid rgba(239,68,68,.35)">⛔ NO realice la identificación.<br><small style="font-weight:400">El productor debe actualizar sus áreas ante el IPSA.</small></div>`
+      : r.estado==='CASI_LLENO'
+      ? `<div class="cue-accion" style="background:rgba(245,158,11,.12);color:#fcd34d;border:1px solid rgba(245,158,11,.35)">⚠️ Quedan pocos espacios (${r.disponibles.toLocaleString()}). Verifica antes de aretar.</div>`
+      : `<div class="cue-accion" style="background:rgba(16,185,129,.12);color:#6ee7b7;border:1px solid rgba(16,185,129,.35)">✅ Puede realizar la identificación.</div>`;
+    const dato=(k,v)=>`<div class="dato"><span class="dk">${k}</span><span class="dv">${v}</span></div>`;
+    cont.innerHTML = `<div class="card" style="border-color:${color}55">
+      <div class="cue-head"><div><b>${r.nombre||'Establecimiento'}</b><br><small>CUE ${r.cue}</small></div>
+        <span class="pill" style="background:${color}26;color:${color}">${pill}</span></div>
+      <div class="gauge"><i style="width:${pct}%;background:${color}"></i></div>
+      <div class="gauge-lbl"><span>Ocupación ${r.porcentaje}%</span><span>Capacidad ${r.capacidad.toLocaleString()}</span></div>
+      <div class="big-disp" style="color:${color}">${bigTxt}</div>
+      <div class="big-sub">${bigSub}</div>
+      ${dato('Área bovina declarada', r.areaBovino.toLocaleString()+' Mz')}
+      ${dato('Capacidad ('+r.areaBovino.toLocaleString()+' × '+r.factor+')', r.capacidad.toLocaleString()+' bovinos')}
+      ${dato('Bovinos según SNITB', r.bovinosIpsa.toLocaleString()+'  <small style="color:var(--muted);font-weight:400">al '+r.fechaDato+'</small>')}
+      ${dato('+ Aretes entregados después', r.entregadosDespues.toLocaleString())}
+      ${dato('= Estimado actual', '<b>'+r.estimado.toLocaleString()+'</b>')}
+      ${accion}
+      ${r.datoViejo ? '<div class="dato-viejo">⏰ El dato del SNITB tiene más de 60 días. Confirma con la operadora antes de decidir.</div>' : ''}
+      <div style="margin-top:16px">
+        <div class="field-lbl">¿Cuántos bovinos va a identificar?</div>
+        <input id="simCant" class="inp-sm" type="number" min="1" inputmode="numeric" placeholder="0" oninput="simularCue()">
+        <div id="simRes" class="cue-status" style="margin-top:8px"></div>
+      </div>
+    </div>`;
+  }
+
+  function simularCue(){
+    const r = ultimoEstadoCue; if(!r || r.status!=='ok') return;
+    const n = Number(document.getElementById('simCant').value)||0;
+    const out = document.getElementById('simRes');
+    if(n<=0){ out.innerHTML=''; return; }
+    const libres = Math.max(0, r.disponibles);
+    if(r.estado!=='LLENO' && n<=libres){
+      out.innerHTML = `<span style="color:#6ee7b7">✓ Sí caben. Quedarían ${(libres-n).toLocaleString()} espacios.</span>`;
+    } else {
+      out.innerHTML = `<span style="color:#fca5a5">✗ No caben: ${libres>0?('solo hay '+libres.toLocaleString()+' espacios'):'el establecimiento está lleno'}. Requiere actualización de áreas en el IPSA.</span>`;
+    }
+  }
+
+  /* Mini-semáforo del CUE en el formulario (solo advierte, no bloquea) */
+  async function chequearCueProd(inp){
+    const card = inp.closest('.prod'); if(!card) return;
+    const slot = card.querySelector('.cue-status'); if(!slot) return;
+    const val = inp.value.trim();
+    if(categoria==='OPERADORES' || !val){ slot.innerHTML=''; return; }
+    slot.innerHTML = '<span class="muted">Verificando CUE…</span>';
+    let r; try{ r = await Backend.estadoCue(val); }catch(e){ slot.innerHTML=''; return; }
+    if(r.status==='sin_datos'){ slot.innerHTML = '<span style="color:#94a3b8">CUE sin datos en la operadora.</span>'; return; }
+    const c = CUE_COLORES[r.estado];
+    const txt = r.estado==='LLENO' ? '⛔ CUE LLENO — no identificar; requiere actualización en IPSA'
+             : r.estado==='CASI_LLENO' ? '⚠️ CUE casi lleno — quedan '+r.disponibles.toLocaleString()+' espacios'
+             : '✓ CUE disponible — '+r.disponibles.toLocaleString()+' espacios';
+    slot.innerHTML = `<span style="color:${c}">${txt}</span>`;
+  }
 
   /* ---------- MIS EXPEDIENTES ---------- */
   async function cargarMisExpedientes(){

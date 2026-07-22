@@ -53,7 +53,10 @@
     aprobarExpediente:         (id, recibo, controlPago, recibos)=> post({ tipo: "aprobar", id, recibo, controlPago, recibos }),
     actualizarExpediente:      (id, datos)              => post({ tipo: "actualizarExpediente", id, datos }),
     getConfirmados:            ()                       => get("confirmados"),
-    marcarProductorEntregado:  (expedienteId, indice, entregado) => post({ tipo: "marcarEntregado", expedienteId, indice, entregado })
+    marcarProductorEntregado:  (expedienteId, indice, entregado) => post({ tipo: "marcarEntregado", expedienteId, indice, entregado }),
+    estadoCue:                 (cue)                    => get("estadoCue", { cue }),
+    getCues:                   ()                       => get("cues"),
+    guardarCue:                (d)                      => post({ tipo: "guardarCue", cue: d.cue, nombre: d.nombre, areaBovino: d.areaBovino, bovinos: d.bovinos, fechaDato: d.fechaDato })
   };
 
   // =================================================================
@@ -73,6 +76,7 @@
         { cupa: "6191909970001M", nombre: "LENINS ANTONIO LAZO DIAZ", cue: "559", habilitadoNumero: "1537" }
       ],
       expedientes: [],
+      cues: [],
       secuencia: 1
     };
   }
@@ -92,13 +96,15 @@
   const Local = {
     async getConfig() {
       const c = cargar().config;
-      return { precio: c.precio, cuiaSiguiente: c.cuiaSiguiente, cuiaFinLote: c.cuiaFinLote, disponible: disponible(cargar()) };
+      return { precio: c.precio, cuiaSiguiente: c.cuiaSiguiente, cuiaFinLote: c.cuiaFinLote, disponible: disponible(cargar()), factorCarga: c.factorCarga || 1.5, umbralAlerta: c.umbralAlerta || 85 };
     },
     async saveConfig(d) {
       const db = cargar();
       db.config.precio = Number(d.precio);
       db.config.cuiaSiguiente = Number(d.cuiaSiguiente);
       db.config.cuiaFinLote = Number(d.cuiaFinLote);
+      if (d.factorCarga !== undefined) db.config.factorCarga = Number(d.factorCarga) || 1.5;
+      if (d.umbralAlerta !== undefined) db.config.umbralAlerta = Number(d.umbralAlerta) || 85;
       guardar(db);
       return { status: "success" };
     },
@@ -206,6 +212,56 @@
       exp.estado = exp.productores.every(p => p.entregado) ? "ENTREGADO" : "PAGADO";
       guardar(db);
       return { status: "success" };
+    },
+    async getCues() {
+      return (cargar().cues || []).map(x => ({ ...x }));
+    },
+    async guardarCue(d) {
+      const db = cargar(); db.cues = db.cues || [];
+      const digitos = v => String(v || "").replace(/\D/g, "");
+      if (!digitos(d.cue)) return { status: "error", message: "CUE inválido" };
+      const igual = (a, b) => { a = digitos(a); b = digitos(b);
+        return a && b && (a === b || (a.length >= 6 && b.length >= 6 && (a.endsWith(b) || b.endsWith(a)))); };
+      const reg = db.cues.find(x => igual(x.cue, d.cue));
+      const fila = { cue: String(d.cue).trim(), nombre: d.nombre || "", areaBovino: Number(d.areaBovino) || 0,
+                     bovinos: Number(d.bovinos) || 0, fechaDato: d.fechaDato || hoyISO() };
+      if (reg) Object.assign(reg, fila); else db.cues.push(fila);
+      guardar(db);
+      return { status: "success" };
+    },
+    async estadoCue(cue) {
+      const db = cargar(); db.cues = db.cues || [];
+      const digitos = v => String(v || "").replace(/\D/g, "");
+      const igual = (a, b) => { a = digitos(a); b = digitos(b);
+        return a && b && (a === b || (a.length >= 6 && b.length >= 6 && (a.endsWith(b) || b.endsWith(a)))); };
+      const pf = s => { const m = String(s || "").match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null; };
+      const reg = db.cues.find(x => igual(x.cue, cue));
+      if (!reg) return { status: "sin_datos", cue: String(cue || "").trim() };
+      const factor = db.config.factorCarga || 1.5;
+      const umbral = db.config.umbralAlerta || 85;
+      const area = Number(reg.areaBovino) || 0;
+      const bovinos = Number(reg.bovinos) || 0;
+      const capacidad = Math.floor(area * factor);
+      const fBase = pf(reg.fechaDato);
+      let entregados = 0;
+      db.expedientes.forEach(e => {
+        if (e.estado !== "PAGADO" && e.estado !== "ENTREGADO") return;
+        const fAp = pf(e.fechaAprobacion) || pf(e.fecha);
+        if (fBase && fAp && fAp < fBase) return;
+        e.productores.forEach(p => { if (igual(p.cue, cue)) entregados += Number(p.cantidad) || 0; });
+      });
+      const estimado = bovinos + entregados;
+      const disponibles = capacidad - estimado;
+      const pct = capacidad > 0 ? Math.round(estimado * 100 / capacidad) : 0;
+      let estado = "DISPONIBLE";
+      if (capacidad <= 0) estado = "SIN_DATOS";
+      else if (disponibles <= 0) estado = "LLENO";
+      else if (pct >= umbral) estado = "CASI_LLENO";
+      const viejo = !fBase || (Date.now() - fBase.getTime()) > 60 * 24 * 3600 * 1000;
+      return { status: "ok", cue: String(reg.cue), nombre: reg.nombre || "", areaBovino: area, factor,
+               capacidad, bovinosIpsa: bovinos, fechaDato: reg.fechaDato, entregadosDespues: entregados,
+               estimado, disponibles, porcentaje: pct, estado, datoViejo: viejo };
     },
     // utilidades de prototipo local
     _reset() { const db = datosSemilla(); guardar(db); return db; },

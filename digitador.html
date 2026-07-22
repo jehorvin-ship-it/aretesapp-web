@@ -75,6 +75,7 @@
     <button class="tab-btn active" onclick="switchTab('pendientes',this)">Pendientes de Aprobar</button>
     <button class="tab-btn" onclick="switchTab('entrega',this)">Entrega IPSA</button>
     <button class="tab-btn" onclick="switchTab('historial',this)">Historial</button>
+    <button class="tab-btn" onclick="switchTab('cues',this)">CUEs</button>
     <button class="tab-btn" onclick="switchTab('config',this)">Configuración</button>
   </div>
 
@@ -122,18 +123,43 @@
     </div>
   </div>
 
+  <!-- CUES -->
+  <div id="tab-cues" class="card">
+    <p style="text-align:center;color:var(--muted);font-size:.82rem;margin-top:0">
+      Datos de establecimientos tomados del <b>SNITB</b>. Los habilitados los consultan en su portal
+      (capacidad = área bovina × factor de carga; se les suma además los aretes entregados después de la fecha del dato).<br>
+      Puedes registrarlos a mano aquí, o sincronizarlos automáticamente con el <b>bot puente</b> (ver INSTALACION.md).
+    </p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:flex-end;margin-bottom:6px">
+      <div><label>CUE</label><input id="cueNuevo" placeholder="9316044757" style="max-width:150px"></div>
+      <div><label>Nombre del establecimiento</label><input id="cueNombre" placeholder="CORRAL DE PIEDRA" style="max-width:210px"></div>
+      <div><label>Área bovina (Mz)</label><input id="cueArea" type="number" step="0.01" style="max-width:120px"></div>
+      <div><label>Bovinos (SNITB)</label><input id="cueBovinos" type="number" style="max-width:110px"></div>
+      <div><label>Fecha del dato</label><input id="cueFecha" type="date" style="max-width:150px"></div>
+      <button class="btn btn-sm" onclick="guardarCueUI()" style="height:38px">Guardar CUE</button>
+    </div>
+    <div id="cueMsg"></div>
+    <button class="btn btn-ghost btn-sm" onclick="cargarCues()" style="margin-bottom:10px">🔄 Actualizar lista</button>
+    <table>
+      <thead><tr><th>CUE</th><th>Establecimiento</th><th>Área (Mz)</th><th>Capacidad</th><th>Bovinos</th><th>Ocupación</th><th>Fecha dato</th></tr></thead>
+      <tbody id="tablaCues"><tr><td colspan="7" style="text-align:center">Cargando…</td></tr></tbody>
+    </table>
+  </div>
+
   <!-- CONFIG -->
   <div id="tab-config" class="card">
     <div style="text-align:center"><span class="chip">Disponible actual: <b id="dispConfig">—</b> aretes</span></div>
     <div class="field"><label>Precio por arete (C$)</label><input id="cfgPrecio" type="number"></div>
     <div class="field"><label>CUIA siguiente disponible (inicio del lote)</label><input id="cfgInicio" type="number"></div>
     <div class="field"><label>CUIA final del lote</label><input id="cfgFin" type="number"></div>
+    <div class="field"><label>Factor de carga (bovinos por Mz de área bovina) — capacidad del CUE</label><input id="cfgFactor" type="number" step="0.1" placeholder="1.5"></div>
+    <div class="field"><label>Umbral de "casi lleno" (% de ocupación)</label><input id="cfgUmbral" type="number" placeholder="85"></div>
     <button class="btn btn-block" onclick="guardarConfig()">GUARDAR CONFIGURACIÓN</button>
     <div id="cfgMsg"></div>
   </div>
 </div>
 
-<script src="backend.js?v=5"></script>
+<script src="backend.js?v=6"></script>
 <script>
   /* ---- Bloqueo de zoom (viewport + touch-action lo hacen; gesture* refuerza iOS) ---- */
   document.addEventListener('gesturestart', e=>e.preventDefault());
@@ -147,6 +173,7 @@
     if(tab==='pendientes') cargarPendientes();
     if(tab==='entrega') cargarEntrega();
     if(tab==='historial') cargarHistorial();
+    if(tab==='cues') cargarCues();
     if(tab==='config') cargarConfig();
   }
 
@@ -322,6 +349,55 @@
   }
   function cerrarModal(){ document.getElementById('modalDetalle').classList.remove('show'); }
 
+  /* ---------- CUES ---------- */
+  async function cargarCues(){
+    const tb = document.getElementById('tablaCues');
+    tb.innerHTML='<tr><td colspan="7" style="text-align:center">Cargando…</td></tr>';
+    // fecha por defecto: hoy
+    const h=new Date();
+    if(!document.getElementById('cueFecha').value)
+      document.getElementById('cueFecha').value = h.getFullYear()+'-'+String(h.getMonth()+1).padStart(2,'0')+'-'+String(h.getDate()).padStart(2,'0');
+    let lista=[], cfg={factorCarga:1.5};
+    try{ [lista, cfg] = await Promise.all([Backend.getCues(), Backend.getConfig()]); }
+    catch(e){ tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--danger)">Error de conexión.</td></tr>'; return; }
+    if(!lista.length){ tb.innerHTML='<tr><td colspan="7" style="text-align:center">Aún no hay CUEs registrados.</td></tr>'; return; }
+    const f = cfg.factorCarga || 1.5;
+    tb.innerHTML = lista.map(x=>{
+      const cap = Math.floor((Number(x.areaBovino)||0) * f);
+      const pct = cap>0 ? Math.round((Number(x.bovinos)||0)*100/cap) : 0;
+      const color = pct>=100 ? 'var(--danger)' : pct>=(cfg.umbralAlerta||85) ? 'var(--warn)' : 'var(--success)';
+      return `<tr>
+        <td class="mono">${x.cue}</td><td>${x.nombre||'—'}</td>
+        <td>${(Number(x.areaBovino)||0).toLocaleString()}</td><td>${cap.toLocaleString()}</td>
+        <td>${(Number(x.bovinos)||0).toLocaleString()}</td>
+        <td><b style="color:${color}">${pct}%</b></td>
+        <td>${x.fechaDato||'—'}</td></tr>`;
+    }).join('');
+  }
+  async function guardarCueUI(){
+    const msg = document.getElementById('cueMsg');
+    const cue = document.getElementById('cueNuevo').value.trim();
+    if(!cue){ msg.innerHTML='<div class="msg msg-err">Escribe el CUE.</div>'; return; }
+    const fIso = document.getElementById('cueFecha').value;
+    const fecha = fIso ? fIso.split('-').reverse().join('/') : '';
+    msg.innerHTML='<div class="msg" style="color:var(--muted)">Guardando…</div>';
+    try{
+      const res = await Backend.guardarCue({
+        cue, nombre: document.getElementById('cueNombre').value.trim(),
+        areaBovino: document.getElementById('cueArea').value,
+        bovinos: document.getElementById('cueBovinos').value,
+        fechaDato: fecha
+      });
+      msg.innerHTML = res.status==='success'
+        ? '<div class="msg msg-ok">✅ CUE guardado.</div>'
+        : '<div class="msg msg-err">'+(res.message||'Error')+'</div>';
+      if(res.status==='success'){
+        ['cueNuevo','cueNombre','cueArea','cueBovinos'].forEach(id=>document.getElementById(id).value='');
+        cargarCues();
+      }
+    }catch(e){ msg.innerHTML='<div class="msg msg-err">Error de conexión.</div>'; }
+  }
+
   /* ---------- CONFIG ---------- */
   async function cargarConfig(){
     try {
@@ -329,6 +405,8 @@
       document.getElementById('cfgPrecio').value = c.precio;
       document.getElementById('cfgInicio').value = c.cuiaSiguiente;
       document.getElementById('cfgFin').value = c.cuiaFinLote;
+      document.getElementById('cfgFactor').value = c.factorCarga || 1.5;
+      document.getElementById('cfgUmbral').value = c.umbralAlerta || 85;
       document.getElementById('dispConfig').textContent = c.disponible;
     } catch(e){ document.getElementById('cfgMsg').innerHTML='<div class="msg msg-err">Error de conexión.</div>'; }
   }
@@ -339,7 +417,9 @@
       const res = await Backend.saveConfig({
         precio: document.getElementById('cfgPrecio').value,
         cuiaSiguiente: document.getElementById('cfgInicio').value,
-        cuiaFinLote: document.getElementById('cfgFin').value
+        cuiaFinLote: document.getElementById('cfgFin').value,
+        factorCarga: document.getElementById('cfgFactor').value,
+        umbralAlerta: document.getElementById('cfgUmbral').value
       });
       msg.innerHTML = res.status==='success'
         ? '<div class="msg msg-ok">✅ Configuración guardada.</div>'

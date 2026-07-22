@@ -128,6 +128,32 @@ Estados de un expediente: `PENDIENTE_PAGO` → `PAGADO` (recibo + CUIA asignados
 - **IMPORTANTE:** pega el `Code.gs` nuevo en Apps Script y **redespliega**
   (Implementar → Gestionar implementaciones → ✏ → Nueva versión) para activar estas funciones.
 
+## Estado del CUE + Bot Puente SNITB
+
+**Qué hace:** los habilitados consultan en su portal si un establecimiento (CUE) tiene espacio para
+identificar bovinos. Capacidad = área bovina declarada (Mz) × **factor de carga** (Configuración, por
+defecto 1.5). Existencias estimadas = bovinos según SNITB **+ aretes entregados por la operadora desde
+la fecha del dato**. Semáforo: verde disponible · ámbar casi lleno (umbral configurable) · rojo LLENO
+(no identificar; el productor debe actualizar áreas ante el IPSA).
+
+**Para activarlo:** pega el `Code.gs` nuevo y **redespliega** (Nueva versión). La hoja `CUES`
+(cue · nombre · areaBovino · bovinos · fechaDato) se crea sola.
+
+**Cómo alimentar los datos (el digitador es el puente):**
+
+1. *Manual:* pestaña **CUEs** del panel del digitador → llenas CUE, nombre, área bovina, bovinos y fecha
+   (los ves en el SNITB → Establecimientos, como la insignia verde "BOVINOS" y la ficha con ÁREA BOVINO (MZ)).
+2. *Automático (recomendado):* instala la extensión gratuita **Tampermonkey** en tu Chrome →
+   crea un script nuevo → pega el contenido de **`snitb-sync.user.js`** (ya trae tu SCRIPT_URL) → guarda.
+   Al entrar a `trazabilidad.ipsa.gob.ni` con tu sesión verás el panel flotante
+   **"AretesApp — Puente SNITB"**: sincroniza un CUE escribiéndolo, o pulsa
+   *Sincronizar TODOS* para actualizar de un jalón todos los CUE ya registrados.
+   El bot usa TU sesión abierta (no guarda contraseñas) y escribe en la hoja `CUES` con la fecha de hoy.
+   Si el SNITB cambia su diseño, el bot avisa el error y siempre queda el registro manual.
+
+> El factor 1.5 no está en la normativa publicada del IPSA (es criterio operativo); por eso es
+> configurable en la pestaña Configuración. Si el IPSA lo confirma distinto, lo cambias sin tocar código.
+
 ## Solución de problemas
 
 - **El scroll solo funciona con 2 dedos / la app se ve como una versión vieja:** el celular está

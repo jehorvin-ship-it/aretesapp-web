@@ -22,7 +22,8 @@ var SH = {
   HABILITADOS: 'Habilitados',
   PRODUCTORES: 'Productores',
   EXPEDIENTES: 'Expedientes',
-  DETALLE: 'Detalle'
+  DETALLE: 'Detalle',
+  CUES: 'CUES'
 };
 
 // =====================================================================
@@ -39,6 +40,8 @@ function doGet(e) {
       case 'expedientesHabilitado':return json(getExpedientesDeHabilitado(e.parameter.numero));
       case 'pendientes':           return json(getPendientes());
       case 'confirmados':          return json(getConfirmados());
+      case 'estadoCue':            return json(estadoCue(e.parameter.cue));
+      case 'cues':                 return json(getCues());
       default:                     return json({ status: 'error', message: 'Acción GET no reconocida: ' + accion });
     }
   } catch (err) {
@@ -58,6 +61,7 @@ function doPost(e) {
       case 'actualizarExpediente': return json(actualizarExpediente(body.id, body.datos));
       case 'marcarEntregado':  return json(marcarProductorEntregado(body.expedienteId, body.indice, body.entregado));
       case 'saveConfig':       return json(saveConfig(body));
+      case 'guardarCue':       return json(guardarCue(body));
       default:                 return json({ status: 'error', message: 'Operación POST no reconocida: ' + body.tipo });
     }
   } catch (err) {
@@ -103,16 +107,21 @@ function esVerdadero(v) { return v === true || String(v).toUpperCase() === 'TRUE
 // =====================================================================
 function getConfig() {
   var sh = hoja(SH.CONFIG);
-  var v = sh.getRange(2, 1, 1, 3).getValues()[0];
+  var v = sh.getRange(2, 1, 1, 5).getValues()[0];
   var precio = Number(v[0]) || 0;
   var ini = Number(v[1]) || 0;
   var fin = Number(v[2]) || 0;
-  return { precio: precio, cuiaSiguiente: ini, cuiaFinLote: fin, disponible: Math.max(0, fin - ini + 1) };
+  var factor = Number(v[3]) || 1.5;   // factor de carga: capacidad = área bovina × factor
+  var umbral = Number(v[4]) || 85;    // % de ocupación que dispara el estado "casi lleno"
+  return { precio: precio, cuiaSiguiente: ini, cuiaFinLote: fin,
+           disponible: Math.max(0, fin - ini + 1), factorCarga: factor, umbralAlerta: umbral };
 }
 
 function saveConfig(d) {
   var sh = hoja(SH.CONFIG);
-  sh.getRange(2, 1, 1, 3).setValues([[Number(d.precio), Number(d.cuiaSiguiente), Number(d.cuiaFinLote)]]);
+  sh.getRange(1, 4, 1, 2).setValues([['factorCarga', 'umbralAlerta']]).setFontWeight('bold');
+  sh.getRange(2, 1, 1, 5).setValues([[Number(d.precio), Number(d.cuiaSiguiente), Number(d.cuiaFinLote),
+    Number(d.factorCarga) || 1.5, Number(d.umbralAlerta) || 85]]);
   return { status: 'success' };
 }
 
@@ -230,6 +239,87 @@ function getPendientes() {
 function getConfirmados() {
   return getExpedientes(function (e) { return e.estado === 'PAGADO' || e.estado === 'ENTREGADO'; })
     .sort(function (a, b) { return b.id - a.id; });
+}
+
+// =====================================================================
+//  ESTADO DEL CUE (capacidad de carga del establecimiento)
+//  capacidad  = área bovina declarada (Mz) × factorCarga (Config, def. 1.5)
+//  estimado   = bovinos según SNITB + aretes entregados por la operadora
+//               DESDE la fecha del dato (Opción B)
+// =====================================================================
+function hojaCues() {
+  var ss = libro();
+  var sh = ss.getSheetByName(SH.CUES);
+  if (!sh) {
+    sh = ss.insertSheet(SH.CUES);
+    sh.getRange(1, 1, 1, 5).setValues([['cue', 'nombre', 'areaBovino', 'bovinos', 'fechaDato']]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function getCues() {
+  hojaCues();
+  return leerObjetos(SH.CUES).map(function (x) {
+    return { cue: String(x.cue), nombre: x.nombre || '', areaBovino: Number(x.areaBovino) || 0,
+             bovinos: Number(x.bovinos) || 0, fechaDato: fechaLegible(x.fechaDato) };
+  });
+}
+
+function guardarCue(d) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sh = hojaCues();
+    if (!soloDigitos(d.cue)) return { status: 'error', message: 'CUE inválido' };
+    var reg = leerObjetos(SH.CUES).filter(function (x) { return mismoCue(x.cue, d.cue); })[0];
+    var fila = [String(d.cue).trim(), d.nombre || '', Number(d.areaBovino) || 0,
+                Number(d.bovinos) || 0, d.fechaDato || fechaHoy()];
+    if (reg) sh.getRange(reg._fila, 1, 1, 5).setValues([fila]);
+    else sh.appendRow(fila);
+    return { status: 'success' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function estadoCue(cue) {
+  hojaCues();
+  var cfg = getConfig();
+  var reg = leerObjetos(SH.CUES).filter(function (x) { return mismoCue(x.cue, cue); })[0];
+  if (!reg) return { status: 'sin_datos', cue: String(cue || '').trim() };
+
+  var area = Number(reg.areaBovino) || 0;
+  var bovinos = Number(reg.bovinos) || 0;
+  var capacidad = Math.floor(area * cfg.factorCarga);
+  var fechaDato = fechaLegible(reg.fechaDato);
+  var fBase = parseFecha(fechaDato);
+
+  // Opción B: sumar aretes entregados por la operadora desde la fecha del dato
+  var entregados = 0;
+  var det = agruparDetalle();
+  leerObjetos(SH.EXPEDIENTES).forEach(function (e) {
+    if (e.estado !== 'PAGADO' && e.estado !== 'ENTREGADO') return;
+    var fAp = parseFecha(fechaLegible(e.fechaAprobacion)) || parseFecha(fechaLegible(e.fecha));
+    if (fBase && fAp && fAp < fBase) return; // solo entregas desde la fecha del dato (inclusive)
+    (det[Number(e.id)] || []).forEach(function (d) {
+      if (mismoCue(d.cue, cue)) entregados += Number(d.cantidad) || 0;
+    });
+  });
+
+  var estimado = bovinos + entregados;
+  var disponibles = capacidad - estimado;
+  var pct = capacidad > 0 ? Math.round(estimado * 100 / capacidad) : 0;
+  var estado = 'DISPONIBLE';
+  if (capacidad <= 0) estado = 'SIN_DATOS';
+  else if (disponibles <= 0) estado = 'LLENO';
+  else if (pct >= cfg.umbralAlerta) estado = 'CASI_LLENO';
+  var viejo = !fBase || ((new Date()).getTime() - fBase.getTime()) > 60 * 24 * 3600 * 1000;
+
+  return { status: 'ok', cue: String(reg.cue), nombre: reg.nombre || '', areaBovino: area,
+           factor: cfg.factorCarga, capacidad: capacidad, bovinosIpsa: bovinos, fechaDato: fechaDato,
+           entregadosDespues: entregados, estimado: estimado, disponibles: disponibles,
+           porcentaje: pct, estado: estado, datoViejo: viejo };
 }
 
 // ---- Crear expediente (lo hace el habilitado) ----------------------
@@ -425,6 +515,23 @@ function marcarProductorEntregado(expedienteId, indice, entregado) {
 // =====================================================================
 //  FECHA
 // =====================================================================
+function parseFecha(s) { // 'dd/MM/yyyy' -> Date (o null)
+  var m = String(s || '').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (!m) return null;
+  return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+}
+
+function soloDigitos(v) { return String(v || '').replace(/\D/g, ''); }
+
+// Compara CUEs tolerando el prefijo de municipio (5589316044757 == 9316044757)
+function mismoCue(a, b) {
+  a = soloDigitos(a); b = soloDigitos(b);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (a.length >= 6 && b.length >= 6) return a.slice(-b.length) === b || b.slice(-a.length) === a;
+  return false;
+}
+
 function fechaLegible(v) {
   if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'dd/MM/yyyy');
   return String(v || '');
@@ -443,7 +550,7 @@ function fechaHoy() {
 function inicializar() {
   var ss = libro();
 
-  crearHoja(ss, SH.CONFIG, ['precio', 'cuiaSiguiente', 'cuiaFinLote'], [[60, 15972996, 15978995]]);
+  crearHoja(ss, SH.CONFIG, ['precio', 'cuiaSiguiente', 'cuiaFinLote', 'factorCarga', 'umbralAlerta'], [[60, 15972996, 15978995, 1.5, 85]]);
   crearHoja(ss, SH.HABILITADOS,
     ['numero', 'nombre', 'cedula', 'pin', 'estado'],
     [
@@ -462,6 +569,7 @@ function inicializar() {
   crearHoja(ss, SH.DETALLE,
     ['expedienteId', 'idx', 'cupa', 'nombre', 'cue', 'cantidad', 'cuiaInicial', 'cuiaFinal', 'entregado', 'recibo'],
     []);
+  crearHoja(ss, SH.CUES, ['cue', 'nombre', 'areaBovino', 'bovinos', 'fechaDato'], []);
 
   // Borra la hoja "Hoja 1" / "Sheet1" vacía si existe
   ['Hoja 1', 'Hoja1', 'Sheet1'].forEach(function (n) {
