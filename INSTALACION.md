@@ -16,6 +16,38 @@ Arquitectura:
 
 ---
 
+## 🆕 Novedades v9 (arreglos UX del portal del habilitado)
+
+Corrige tres cosas que notaste probando en el celular:
+
+1. **El CUE ya se ve completo.** El campo CUE ocupa toda la fila y usa tipografía
+   monoespaciada, así se lee entero (p. ej. `5589316189733`).
+2. **Se quitó el mensaje engañoso "CUE sin datos en la operadora".** Al validar el
+   CUPA o elegir un establecimiento, el estado del CUE se consulta **EN VIVO al SNITB**
+   por el puente. Si el puente no está en línea y no hay dato guardado, muestra un aviso
+   neutro ("No se pudo verificar el estado ahora…"), nunca el texto anterior.
+3. **Se autocompleta el NOMBRE de la persona.** Cuando el productor tiene varias fincas y
+   eliges una (o cuando tiene una sola), el nombre del productor se toma del SNITB y se
+   escribe solo en "Nombre del productor". El CUPA identifica a la persona; el nombre es el
+   mismo para todas sus fincas.
+
+**Para activar v9 hay que hacer 3 cosas:**
+
+1. **Apps Script:** pega el `Code.gs` nuevo y **redespliega** (Implementar → Gestionar
+   implementaciones → ✏ → **Nueva versión**). El relay ahora también pasa el nombre del productor.
+2. **Tampermonkey:** reemplaza el script por `snitb-sync.user.js` **v1.3** (lee el nombre de la
+   persona desde la ficha del establecimiento). Guarda y recarga el SNITB.
+3. **Celulares de los habilitados:** sube los archivos web nuevos y **borra la caché / recarga
+   completa** (o reinstala el acceso directo) para que tome el `habilitado.html` nuevo. La app
+   ya pide `backend.js?v=9`.
+
+> El nombre de la persona se lee de la **ficha del establecimiento** del SNITB (la lista de
+> Establecimientos no trae ese dato). El bot prueba varias etiquetas ("PRODUCTOR",
+> "PROPIETARIO", "NOMBRE DEL PRODUCTOR"…). Si en algún establecimiento no lo detecta, el
+> campo Nombre queda editable a mano (no se rompe nada) — avísame y ajusto la etiqueta exacta.
+
+---
+
 ## PARTE A — Base de datos en Google Sheets
 
 1. Entra a <https://sheets.google.com> y crea una **hoja de cálculo nueva**. Ponle nombre, por ejemplo `AretesApp DB`.

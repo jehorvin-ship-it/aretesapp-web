@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AretesApp - Bot Puente SNITB
 // @namespace    aretesapp
-// @version      1.2
+// @version      1.3
 // @description  Sincroniza área bovina y existencias de los CUE desde el SNITB (IPSA) hacia la hoja CUES de AretesApp. Corre con TU sesión iniciada; no guarda contraseñas.
 // @match        https://trazabilidad.ipsa.gob.ni/*
 // @grant        none
@@ -79,7 +79,60 @@
       return null;
     };
 
-    return { areaBovino: buscar("AREA\\s*BOVINO"), areaFinca: buscar("AREA\\s*DE\\s*LA\\s*FINCA") };
+    return { areaBovino: buscar("AREA\\s*BOVINO"), areaFinca: buscar("AREA\\s*DE\\s*LA\\s*FINCA"),
+             nombreProductor: extraerNombreProductor(html) };
+  }
+
+  // Extrae el NOMBRE DE LA PERSONA (productor/propietario) desde la ficha del
+  // establecimiento. El SNITB guarda los nombres en MAYÚSCULAS. Probamos varias
+  // etiquetas y validamos que parezca un nombre de persona (2+ palabras, solo
+  // letras) y NO el nombre de la finca/lugar. Si no lo halla, devuelve "".
+  function esNombrePersona(v) {
+    if (!v) return false;
+    var t = String(v).trim().replace(/\s+/g, " ");
+    if (t.length < 6 || t.length > 60) return false;
+    if (!/^[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ .'’-]+$/.test(t)) return false;
+    if (/(ESTABLECIMIENTO|FINCA|PREDIO|GRANJA|DEPARTAMENTO|MUNICIPIO|ATL[ÁA]NTICO|TORTUGUERO|BOVINO|\bAREA\b|INSCRIP|TRAZAB|SISTEMA|NACIONAL|FORMATO|SELECCIONE|NINGUN|NOMBRE|CEDULA|C[ÓO]DIGO|DOCUMENTO|FECHA|CATEGOR|\bTIPO\b|CORREO|TEL[ÉE]FONO|DIRECCI[ÓO]N)/.test(t)) return false;
+    if (/^(EL|LA|LOS|LAS)\s/.test(t)) return false;   // los nombres de finca suelen iniciar con artículo
+    return t.split(" ").filter(Boolean).length >= 2;
+  }
+  // Recorta un valor capturado para que no arrastre el siguiente campo de la ficha
+  // (p.ej. "LENINS ANTONIO LAZO DIAZ MUNICIPIO" -> "LENINS ANTONIO LAZO DIAZ").
+  function limpiarNombre(v) {
+    var palabras = String(v || "").trim().split(/\s+/);
+    var corte = /^(MUNICIPIO|DEPARTAMENTO|CUE|CUPA|CUC|CUS|C[ÓO]DIGO|FECHA|[ÁA]REA|BOVINOS?|TIPO|CATEGOR[ÍI]A|DOCUMENTO|ESTABLECIMIENTO|NOMBRE|C[ÉE]DULA|DIRECCI[ÓO]N|TEL[ÉE]FONO|CORREO|RUC|ACTIVIDAD|REGISTRO|PREDIO|GRANJA|FINCA)$/;
+    var res = [];
+    for (var k = 0; k < palabras.length; k++) {
+      var w = palabras[k];
+      if (!/^[A-ZÁÉÍÓÚÑ]/i.test(w)) break;                       // token que no inicia con letra -> fin del nombre
+      var limpio = w.replace(/[.,;:]+$/, "");
+      if (corte.test(limpio.toUpperCase())) break;               // etiqueta del siguiente campo
+      res.push(limpio);
+    }
+    return res.join(" ").trim();
+  }
+  function extraerNombreProductor(html) {
+    var NOMBRE = "([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ .'’-]{5,58})";
+    var etiquetas = [
+      "NOMBRE\\s+DEL\\s+PRODUCTOR", "NOMBRES?\\s+Y\\s+APELLIDOS?", "NOMBRE\\s+COMPLETO",
+      "PRODUCTOR", "PROPIETARIO", "DUE(?:Ñ|N)O", "TITULAR", "RESPONSABLE"
+    ];
+    var i, m, v;
+    // 1) valor dentro de un input cercano a la etiqueta (lo más fiable en la ficha)
+    for (i = 0; i < etiquetas.length; i++) {
+      m = html.match(new RegExp(etiquetas[i] + "[\\s\\S]{0,260}?value\\s*=\\s*[\"']\\s*" + NOMBRE + "\\s*[\"']", "i"));
+      if (m) { v = limpiarNombre(m[1]); if (esNombrePersona(v)) return v; }
+    }
+    // 2) etiqueta seguida del valor en texto plano
+    var texto = html.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ");
+    for (i = 0; i < etiquetas.length; i++) {
+      m = texto.match(new RegExp(etiquetas[i] + "\\s*:?\\s*" + NOMBRE, "i"));
+      if (m) { v = limpiarNombre(m[1]); if (esNombrePersona(v)) return v; }
+    }
+    // 3) input cuyo name/id menciona al productor/propietario
+    m = html.match(/(?:name|id)\s*=\s*["'][^"']*(?:productor|propietario|due|nombre)[^"']*["'][^>]*value\s*=\s*["']\s*([^"']{6,60})["']/i);
+    if (m) { v = limpiarNombre(m[1].toUpperCase()); if (esNombrePersona(v)) return v; }
+    return "";
   }
 
   async function sincronizarCue(cue, log) {
@@ -196,20 +249,25 @@
       try {
         if (j.tipo === "CUPA") {
           const lista = await listarPorCupa(j.termino);
-          let unico = null;
-          if (lista.length === 1) {
-            const areas = await leerAreas(lista[0].hrefDetalle);
-            unico = { cue: lista[0].cue, nombre: lista[0].nombre, areaBovino: areas.areaBovino, bovinos: lista[0].bovinos };
+          let unico = null, nombreProductor = "";
+          if (lista.length >= 1) {
+            // Abre UNA ficha (la primera) para leer el NOMBRE de la persona (es el mismo para todas sus fincas)
+            let areas0 = {};
+            try { areas0 = await leerAreas(lista[0].hrefDetalle); } catch (e) {}
+            nombreProductor = areas0.nombreProductor || "";
+            if (lista.length === 1) {
+              unico = { cue: lista[0].cue, nombre: lista[0].nombre, areaBovino: areas0.areaBovino, bovinos: lista[0].bovinos, nombreProductor: nombreProductor };
+            }
           }
           const listaLimpia = lista.map(x => ({ cue: x.cue, nombre: x.nombre, bovinos: x.bovinos }));
-          await apiPost({ tipo: "entregarResultadoCue", jobId: j.jobId, datos: { lista: listaLimpia, unico } });
-          log(`📡 CUPA ${j.termino}: ${lista.length} establecimiento(s)`);
+          await apiPost({ tipo: "entregarResultadoCue", jobId: j.jobId, datos: { lista: listaLimpia, unico, nombreProductor } });
+          log(`📡 CUPA ${j.termino}: ${lista.length} establecimiento(s)${nombreProductor ? " — " + nombreProductor : ""}`);
         } else {
           const fila = await leerFila(j.termino);
           const areas = await leerAreas(fila.hrefDetalle);
           if (fila.bovinos === null || areas.areaBovino === null) throw new Error("dato incompleto en el SNITB");
           await apiPost({ tipo: "entregarResultadoCue", jobId: j.jobId,
-            datos: { cue: digitos(j.termino), nombre: fila.nombre, areaBovino: areas.areaBovino, bovinos: fila.bovinos } });
+            datos: { cue: digitos(j.termino), nombre: fila.nombre, areaBovino: areas.areaBovino, bovinos: fila.bovinos, nombreProductor: areas.nombreProductor || "" } });
           log(`📡 CUE ${j.termino} → ${fila.nombre} (${areas.areaBovino} Mz, ${fila.bovinos} bov.)`);
         }
       } catch (e) {

@@ -286,9 +286,17 @@
       const j = _colaLocal[jobId];
       if (!j) return { status: "expirado" };
       delete _colaLocal[jobId];
-      if (j.tipo === "CUPA") return { status: "listo", datos: { tipo: "CUPA", lista: [] } };
+      if (j.tipo === "CUPA") {
+        // Demo local: simula un productor con 2 fincas y su nombre. En REMOTO lo trae el bot del SNITB.
+        const prod = cargar().productores.find(p => p.cupa === String(j.termino || "").trim().toUpperCase());
+        const nombreProductor = prod ? prod.nombre : "PRODUCTOR DEMO LOCAL";
+        return { status: "listo", datos: { tipo: "CUPA", nombreProductor, lista: [
+          { cue: (prod && prod.cue) || "9316044757", nombre: "FINCA DEMO 1", bovinos: 20 },
+          { cue: "9316044999", nombre: "FINCA DEMO 2", bovinos: 5 }
+        ] } };
+      }
       const datos = await this.estadoCue(j.cue);
-      datos.enVivo = true;
+      datos.enVivo = true; datos.nombreProductor = "";
       return { status: "listo", datos };
     },
     async trabajosPendientes() { return []; },

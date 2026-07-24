@@ -99,6 +99,7 @@
 
   .inp-sm{width:100%;padding:16px 15px;border-radius:14px;border:1.5px solid var(--line);background:var(--bg2);color:#fff;font-size:17px;}
   .inp-sm:focus{outline:none;border-color:var(--primary);}
+  .p-cue{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;letter-spacing:.5px;}
 
   /* productor card */
   .prod{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:14px;position:relative;}
@@ -314,7 +315,7 @@
   </nav>
 </div>
 
-<script src="backend.js?v=8"></script>
+<script src="backend.js?v=9"></script>
 <script>
   /* ---- Bloqueo de zoom ----
      El pellizco queda bloqueado por el viewport (user-scalable=no) y el
@@ -420,16 +421,14 @@
       <div class="cupa-fincas"></div>
       <div class="field-lbl">Nombre del productor</div>
       <input class="inp-sm p-nombre" placeholder="Nombre completo" autocomplete="off">
-      <div class="grid2" style="margin-top:12px">
-        <div class="cue-wrap">
-          <div class="field-lbl">CUE</div>
-          <input class="inp-sm p-cue" placeholder="558" inputmode="numeric" autocomplete="off" onblur="chequearCueProd(this)">
-          <div class="cue-status"></div>
-        </div>
-        <div>
-          <div class="field-lbl">Cantidad</div>
-          <input class="inp-sm p-cant" type="number" min="1" inputmode="numeric" placeholder="0" oninput="recalcular()">
-        </div>
+      <div class="cue-wrap" style="margin-top:12px">
+        <div class="field-lbl">CUE</div>
+        <input class="inp-sm p-cue" placeholder="Ej: 5589316201307" inputmode="numeric" autocomplete="off" onblur="chequearCueProd(this)">
+        <div class="cue-status"></div>
+      </div>
+      <div style="margin-top:12px">
+        <div class="field-lbl">Cantidad</div>
+        <input class="inp-sm p-cant" type="number" min="1" inputmode="numeric" placeholder="0" oninput="recalcular()">
       </div>
       <div class="subtotal">Subtotal: <b class="p-sub">C$ 0</b></div>`;
     document.getElementById('prodContainer').appendChild(div);
@@ -616,20 +615,43 @@
     }
   }
 
-  /* Mini-semáforo del CUE en el formulario (solo advierte, no bloquea) */
-  async function chequearCueProd(inp){
-    const card = inp.closest('.prod'); if(!card) return;
-    const slot = card.querySelector('.cue-status'); if(!slot) return;
-    const val = inp.value.trim();
-    if(categoria==='OPERADORES' || !val){ slot.innerHTML=''; return; }
-    slot.innerHTML = '<span class="muted">Verificando CUE…</span>';
-    let r; try{ r = await Backend.estadoCue(val); }catch(e){ slot.innerHTML=''; return; }
-    if(r.status==='sin_datos'){ slot.innerHTML = '<span style="color:#94a3b8">CUE sin datos en la operadora.</span>'; return; }
+  /* Mini-semáforo del CUE en el formulario. Consulta EN VIVO al SNITB por el
+     puente (con respaldo de caché). Los datos vienen del SNITB, no de la operadora. */
+  function pintarSemaforoProd(slot, r){
+    if(!r || r.status!=='ok') return;
     const c = CUE_COLORES[r.estado];
     const txt = r.estado==='LLENO' ? '⛔ CUE LLENO — no identificar; requiere actualización en IPSA'
              : r.estado==='CASI_LLENO' ? '⚠️ CUE casi lleno — quedan '+r.disponibles.toLocaleString()+' espacios'
              : '✓ CUE disponible — '+r.disponibles.toLocaleString()+' espacios';
     slot.innerHTML = `<span style="color:${c}">${txt}</span>`;
+  }
+  async function chequearCueProd(inp){
+    const card = inp.closest('.prod'); if(!card) return;
+    const slot = card.querySelector('.cue-status'); if(!slot) return;
+    const val = inp.value.trim();
+    if(categoria==='OPERADORES' || !val){ slot.innerHTML=''; return; }
+    slot.innerHTML = '<span class="muted">Verificando el estado del CUE en el SNITB…</span>';
+    let sol=null;
+    try{ sol = await Backend.solicitarCue(val, habilitadoActual?habilitadoActual.numero:''); }catch(e){ sol=null; }
+    const cache = sol && sol.cache && sol.cache.status==='ok' ? sol.cache : null;
+    if(cache) pintarSemaforoProd(slot, cache);
+    if(sol && sol.jobId){
+      const t0=Date.now(); let vivo=null;
+      while(Date.now()-t0 < 16000){
+        await sleep(1300);
+        let res; try{ res = await Backend.resultadoCue(sol.jobId); }catch(e){ continue; }
+        if(res.status==='listo'){ vivo=res.datos; break; }
+        if(res.status==='error' || res.status==='expirado'){ break; }
+      }
+      if(vivo && vivo.status==='ok'){
+        pintarSemaforoProd(slot, vivo);
+        const nom=(vivo.nombreProductor||'').trim();
+        const nInp=card.querySelector('.p-nombre'); if(nom && nInp && !nInp.value.trim()) nInp.value=nom;
+        return;
+      }
+    }
+    if(cache) return;                    // ya mostramos el último dato real
+    slot.innerHTML = '<span style="color:#94a3b8">No se pudo verificar el estado ahora. Revísalo en la pestaña «Estado CUE».</span>';
   }
 
   /* ---------- VALIDACIÓN DE CUPA EN VIVO + PUENTE ---------- */
@@ -653,9 +675,11 @@
                               : '<span style="color:#94a3b8">No se pudo validar en vivo (puente sin conexión).</span>';
       return; }
     const lista=datos.lista||[];
+    const nombreSNITB=(datos.nombreProductor||'').trim();
+    if(nombreSNITB) card.querySelector('.p-nombre').value=nombreSNITB;  // el CUPA identifica a la persona (mismo nombre para todas sus fincas)
     if(lista.length===0){ look.className='lookup'; look.innerHTML='<span style="color:#fca5a5">✗ CUPA no encontrado en el SNITB. Verifica el código.</span>'; return; }
     if(lista.length===1){ aplicarFinca(card, lista[0], datos.semaforo); return; }
-    look.className='lookup'; look.innerHTML='<span style="color:#6ee7b7">✓ CUPA válido</span> — este productor tiene '+lista.length+' establecimientos. Elige a cuál van los aretes:';
+    look.className='lookup'; look.innerHTML='<span style="color:#6ee7b7">✓ CUPA válido'+(nombreSNITB?(' — '+nombreSNITB):'')+'</span> — este productor tiene '+lista.length+' establecimientos. Elige a cuál van los aretes:';
     card._fincas=lista;
     if(fincasDiv) fincasDiv.innerHTML = lista.map((f,i)=>`<span class="chip-cue" onclick="elegirFincaIdx(this,${i})">${(f.nombre||('CUE '+f.cue))} · CUE ${f.cue}${(f.bovinos!==''&&f.bovinos!=null)?(' · '+f.bovinos+' bov.'):''}</span>`).join('');
   }
@@ -673,7 +697,7 @@
     } else if(slot){ chequearCueProd(card.querySelector('.p-cue')); }
   }
   function elegirFincaIdx(el, i){ const card=el.closest('.prod'); const f=(card._fincas||[])[i]; if(!f) return;
-    const fd=card.querySelector('.cupa-fincas'); if(fd) fd.innerHTML=''; aplicarFinca(card, f, null); chequearCueProd(card.querySelector('.p-cue')); }
+    const fd=card.querySelector('.cupa-fincas'); if(fd) fd.innerHTML=''; aplicarFinca(card, f, null); }
 
   let puenteInt=null;
   async function refrescarPuente(){

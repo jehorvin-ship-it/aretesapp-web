@@ -424,7 +424,8 @@ function entregarResultadoCue(jobId, datos) {
       sh.getRange(job._fila, 5).setValue('ERROR');
       resultado = JSON.stringify({ message: String(datos.error) });
     } else if (String(job.tipo) === 'CUPA') {
-      var out = { tipo: 'CUPA', lista: datos.lista || [] };
+      var out = { tipo: 'CUPA', lista: datos.lista || [],
+                  nombreProductor: String(datos.nombreProductor || (datos.unico && datos.unico.nombreProductor) || '') };
       if (datos.unico && datos.unico.cue) {
         guardarCue({ cue: datos.unico.cue, nombre: datos.unico.nombre, areaBovino: datos.unico.areaBovino, bovinos: datos.unico.bovinos, fechaDato: fechaHoy() });
         var estU = estadoCue(datos.unico.cue); estU.enVivo = true;
@@ -435,6 +436,7 @@ function entregarResultadoCue(jobId, datos) {
     } else {
       guardarCue({ cue: datos.cue, nombre: datos.nombre, areaBovino: datos.areaBovino, bovinos: datos.bovinos, fechaDato: fechaHoy() });
       var est = estadoCue(datos.cue); est.enVivo = true;
+      est.nombreProductor = String(datos.nombreProductor || '');
       sh.getRange(job._fila, 5).setValue('LISTO');
       resultado = JSON.stringify(est);
     }
