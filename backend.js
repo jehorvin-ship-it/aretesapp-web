@@ -58,6 +58,8 @@
     getCues:                   ()                       => get("cues"),
     guardarCue:                (d)                      => post({ tipo: "guardarCue", cue: d.cue, nombre: d.nombre, areaBovino: d.areaBovino, bovinos: d.bovinos, fechaDato: d.fechaDato }),
     solicitarCue:              (cue, hab)               => post({ tipo: "solicitarCue", cue, habilitadoNumero: hab }),
+    solicitarCupa:             (cupa, hab)              => post({ tipo: "solicitarCupa", cupa, habilitadoNumero: hab }),
+    estadoPuente:              ()                       => get("estadoPuente"),
     resultadoCue:              (jobId)                  => get("resultadoCue", { jobId }),
     trabajosPendientes:        ()                       => get("trabajosPendientes"),
     entregarResultadoCue:      (jobId, datos)           => post({ tipo: "entregarResultadoCue", jobId, datos })
@@ -271,15 +273,22 @@
     async solicitarCue(cue, hab) {
       const cache = await this.estadoCue(cue);
       const jobId = "local-" + Math.random().toString(36).slice(2);
-      _colaLocal[jobId] = { cue };
+      _colaLocal[jobId] = { tipo: "CUE", cue };
       return { status: "ok", jobId, cache };
     },
+    async solicitarCupa(cupa, hab) {
+      const jobId = "localc-" + Math.random().toString(36).slice(2);
+      _colaLocal[jobId] = { tipo: "CUPA", termino: cupa };
+      return { status: "ok", jobId };
+    },
+    async estadoPuente() { return { online: false, lastSeen: 0 }; },
     async resultadoCue(jobId) {
       const j = _colaLocal[jobId];
       if (!j) return { status: "expirado" };
+      delete _colaLocal[jobId];
+      if (j.tipo === "CUPA") return { status: "listo", datos: { tipo: "CUPA", lista: [] } };
       const datos = await this.estadoCue(j.cue);
       datos.enVivo = true;
-      delete _colaLocal[jobId];
       return { status: "listo", datos };
     },
     async trabajosPendientes() { return []; },

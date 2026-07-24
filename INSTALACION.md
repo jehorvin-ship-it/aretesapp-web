@@ -171,6 +171,18 @@ Ahora la consulta de Estado CUE del habilitado trae el dato **en tiempo real del
 habilitados consultan). Cada consulta toca UN solo CUE (buscar + abrir ficha), así que no satura el SNITB.
 Fuera de horario, el respaldo caché cubre. El bot solo LEE del SNITB; nunca escribe ahí.
 
+### Validación de CUPA en vivo + indicador de puente
+
+- **Alta de productor validada:** al crear el expediente, cuando el habilitado escribe el **CUPA** del
+  productor, el bot lo verifica contra el SNITB y devuelve sus **establecimientos** (CUE). Si el productor
+  tiene una sola finca, autocompleta el CUE y muestra el semáforo; si tiene varias, aparece un selector
+  "elige a cuál van los aretes"; si no existe, avisa "CUPA no encontrado". Esto evita el error que hace que
+  el IPSA rechace la entrega. Requiere el bot de guardia; si no está, usa lo guardado o avisa que no validó en vivo.
+- **Indicador de puente:** en la pestaña *Estado CUE* el habilitado ve "● En línea" cuando el bot está de
+  guardia, o "○ Sin conexión — verás el último dato guardado". Así sabe si el dato es en vivo o de respaldo.
+  (El bot deja un "latido" cada pocos segundos vía PropertiesService; no requiere configurar nada.)
+
+
 
 ## Solución de problemas
 

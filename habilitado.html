@@ -280,6 +280,7 @@
     <!-- ESTADO CUE -->
     <section id="viewCue" class="hidden">
       <h2 class="sec">Estado del establecimiento (CUE)</h2>
+      <div id="puenteEstado" style="text-align:center;font-size:.82rem;margin:-6px 4px 14px;font-weight:600"></div>
       <div class="card">
         <div class="field-lbl">Código Único de Establecimiento (CUE)</div>
         <div style="display:flex;gap:10px">
@@ -313,7 +314,7 @@
   </nav>
 </div>
 
-<script src="backend.js?v=7"></script>
+<script src="backend.js?v=8"></script>
 <script>
   /* ---- Bloqueo de zoom ----
      El pellizco queda bloqueado por el viewport (user-scalable=no) y el
@@ -414,8 +415,9 @@
         </button>
       </div>
       <div class="field-lbl">CUPA (código del productor)</div>
-      <input class="inp-sm p-cupa" placeholder="619...N" autocomplete="off" onblur="autocompletar(this)">
+      <input class="inp-sm p-cupa" placeholder="619...N" autocomplete="off" onblur="validarCupaLive(this)">
       <div class="lookup"></div>
+      <div class="cupa-fincas"></div>
       <div class="field-lbl">Nombre del productor</div>
       <input class="inp-sm p-nombre" placeholder="Nombre completo" autocomplete="off">
       <div class="grid2" style="margin-top:12px">
@@ -507,6 +509,7 @@
   const CUE_COLORES = { DISPONIBLE:'#10b981', CASI_LLENO:'#f59e0b', LLENO:'#ef4444', SIN_DATOS:'#94a3b8' };
 
   async function prepararTabCue(){
+    refrescarPuente(); iniciarPuentePoll();
     // chips con los CUE que el habilitado ya ha usado
     try{
       if(!cacheMis.length) cacheMis = await Backend.getExpedientesDeHabilitado(habilitadoActual.numero);
@@ -628,6 +631,59 @@
              : '✓ CUE disponible — '+r.disponibles.toLocaleString()+' espacios';
     slot.innerHTML = `<span style="color:${c}">${txt}</span>`;
   }
+
+  /* ---------- VALIDACIÓN DE CUPA EN VIVO + PUENTE ---------- */
+  async function validarCupaLive(inp){
+    const card=inp.closest('.prod'); if(!card) return;
+    const look=card.querySelector('.lookup'); const fincasDiv=card.querySelector('.cupa-fincas');
+    if(fincasDiv) fincasDiv.innerHTML='';
+    const val=inp.value.trim(); if(!val){ look.textContent=''; return; }
+    let localP=null; try{ localP=await Backend.buscarProductor(val); }catch(e){}
+    if(localP){ card.querySelector('.p-nombre').value=localP.nombre; if(categoria!=='OPERADORES') card.querySelector('.p-cue').value=localP.cue;
+      look.className='lookup ok'; look.textContent='✓ '+localP.nombre+' (guardado)'; }
+    if(categoria==='OPERADORES') return;
+    look.className='lookup'; look.innerHTML=(localP?('✓ '+localP.nombre+' — '):'')+'<span class="muted">verificando CUPA en el SNITB…</span>';
+    let sol; try{ sol=await Backend.solicitarCupa(val); }catch(e){ sol=null; }
+    if(!sol||!sol.jobId){ if(!localP) look.textContent=''; return; }
+    const t0=Date.now(); let datos=null;
+    while(Date.now()-t0<20000){ await sleep(1300); let res; try{ res=await Backend.resultadoCue(sol.jobId); }catch(e){ continue; }
+      if(res.status==='listo'){ datos=res.datos; break; } if(res.status==='error'||res.status==='expirado'){ break; } }
+    if(!datos){ look.className='lookup';
+      look.innerHTML = localP ? '✓ '+localP.nombre+' (guardado) · <span style="color:#94a3b8">no se validó en vivo</span>'
+                              : '<span style="color:#94a3b8">No se pudo validar en vivo (puente sin conexión).</span>';
+      return; }
+    const lista=datos.lista||[];
+    if(lista.length===0){ look.className='lookup'; look.innerHTML='<span style="color:#fca5a5">✗ CUPA no encontrado en el SNITB. Verifica el código.</span>'; return; }
+    if(lista.length===1){ aplicarFinca(card, lista[0], datos.semaforo); return; }
+    look.className='lookup'; look.innerHTML='<span style="color:#6ee7b7">✓ CUPA válido</span> — este productor tiene '+lista.length+' establecimientos. Elige a cuál van los aretes:';
+    card._fincas=lista;
+    if(fincasDiv) fincasDiv.innerHTML = lista.map((f,i)=>`<span class="chip-cue" onclick="elegirFincaIdx(this,${i})">${(f.nombre||('CUE '+f.cue))} · CUE ${f.cue}${(f.bovinos!==''&&f.bovinos!=null)?(' · '+f.bovinos+' bov.'):''}</span>`).join('');
+  }
+  function aplicarFinca(card, finca, semaforo){
+    card.querySelector('.p-cue').value = finca.cue;
+    const look=card.querySelector('.lookup');
+    look.className='lookup ok'; look.innerHTML='✓ CUPA válido — '+(finca.nombre||'establecimiento')+' (CUE '+finca.cue+')';
+    const slot=card.querySelector('.cue-status');
+    if(slot && semaforo && semaforo.status==='ok'){
+      const c=CUE_COLORES[semaforo.estado];
+      const txt = semaforo.estado==='LLENO' ? '⛔ Establecimiento LLENO — no identificar; requiere actualización en IPSA'
+               : semaforo.estado==='CASI_LLENO' ? '⚠️ Casi lleno — quedan '+semaforo.disponibles.toLocaleString()+' espacios'
+               : '✓ Disponible — '+semaforo.disponibles.toLocaleString()+' espacios';
+      slot.innerHTML='<span style="color:'+c+'">'+txt+'</span>';
+    } else if(slot){ chequearCueProd(card.querySelector('.p-cue')); }
+  }
+  function elegirFincaIdx(el, i){ const card=el.closest('.prod'); const f=(card._fincas||[])[i]; if(!f) return;
+    const fd=card.querySelector('.cupa-fincas'); if(fd) fd.innerHTML=''; aplicarFinca(card, f, null); chequearCueProd(card.querySelector('.p-cue')); }
+
+  let puenteInt=null;
+  async function refrescarPuente(){
+    const el=document.getElementById('puenteEstado'); if(!el) return;
+    let p; try{ p=await Backend.estadoPuente(); }catch(e){ p={online:false}; }
+    el.innerHTML = p.online
+      ? '<span style="color:#6ee7b7">● En línea — consultas en vivo disponibles</span>'
+      : '<span style="color:#94a3b8">○ Sin conexión al puente — verás el último dato guardado</span>';
+  }
+  function iniciarPuentePoll(){ if(puenteInt) return; puenteInt=setInterval(()=>{ const v=document.getElementById('viewCue'); if(v && !v.classList.contains('hidden')) refrescarPuente(); }, 15000); }
 
   /* ---------- MIS EXPEDIENTES ---------- */
   async function cargarMisExpedientes(){

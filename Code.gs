@@ -45,6 +45,7 @@ function doGet(e) {
       case 'cues':                 return json(getCues());
       case 'resultadoCue':         return json(resultadoCue(e.parameter.jobId));
       case 'trabajosPendientes':   return json(trabajosPendientes());
+      case 'estadoPuente':         return json(estadoPuente());
       default:                     return json({ status: 'error', message: 'Acción GET no reconocida: ' + accion });
     }
   } catch (err) {
@@ -66,6 +67,7 @@ function doPost(e) {
       case 'saveConfig':       return json(saveConfig(body));
       case 'guardarCue':       return json(guardarCue(body));
       case 'solicitarCue':          return json(solicitarCue(body.cue, body.habilitadoNumero));
+      case 'solicitarCupa':         return json(solicitarCupa(body.cupa, body.habilitadoNumero));
       case 'entregarResultadoCue':  return json(entregarResultadoCue(body.jobId, body.datos));
       default:                 return json({ status: 'error', message: 'Operación POST no reconocida: ' + body.tipo });
     }
@@ -328,17 +330,25 @@ function estadoCue(cue) {
 }
 
 // =====================================================================
-//  RELAY EN VIVO (cola de consultas de CUE al SNITB)
+//  RELAY EN VIVO (cola: estado de CUE y validación de CUPA contra el SNITB)
 //  El habilitado pide -> se encola -> el bot de guardia (navegador del
-//  digitador) lo toma, consulta el SNITB con su sesión y devuelve el
-//  dato. De paso se cachea en CUES (respaldo para cuando el bot no está).
+//  digitador) lo toma, consulta el SNITB con su sesión y devuelve el dato.
+//  tipo 'CUE'  : estado/capacidad de un establecimiento (se cachea en CUES).
+//  tipo 'CUPA' : valida el CUPA del productor y lista sus establecimientos.
 // =====================================================================
 function hojaCola() {
   var ss = libro();
+  var head = ['jobId', 'tipo', 'termino', 'hab', 'estado', 'tsSolicitud', 'tsResultado', 'resultado'];
   var sh = ss.getSheetByName(SH.COLA);
   if (!sh) {
     sh = ss.insertSheet(SH.COLA);
-    sh.getRange(1, 1, 1, 7).setValues([['jobId', 'cue', 'hab', 'estado', 'tsSolicitud', 'tsResultado', 'resultado']]).setFontWeight('bold');
+    sh.getRange(1, 1, 1, head.length).setValues([head]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+    return sh;
+  }
+  if (String(sh.getRange(1, 2).getValue()) !== 'tipo') { // repara hoja de una versión anterior
+    sh.clear();
+    sh.getRange(1, 1, 1, head.length).setValues([head]).setFontWeight('bold');
     sh.setFrozenRows(1);
   }
   return sh;
@@ -353,36 +363,55 @@ function purgarCola_(sh) {
   viejas.forEach(function (f) { sh.deleteRow(f); });
 }
 
-// El habilitado solicita: encola y devuelve de inmediato el dato en caché (si hay)
-function solicitarCue(cue, hab) {
+function _encolar(tipo, termino, hab) {
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
     var sh = hojaCola();
     purgarCola_(sh);
     var jobId = Utilities.getUuid();
-    sh.appendRow([jobId, soloDigitos(cue), String(hab || ''), 'PENDIENTE', new Date().getTime(), '', '']);
-    return { status: 'ok', jobId: jobId, cache: estadoCue(cue) };
+    sh.appendRow([jobId, tipo, String(termino), String(hab || ''), 'PENDIENTE', new Date().getTime(), '', '']);
+    return jobId;
   } finally {
     lock.releaseLock();
   }
 }
 
-// El bot de guardia pregunta qué hay pendiente (y lo reclama para no repetir)
+// Habilitado: pide el estado de un CUE (devuelve la caché al instante)
+function solicitarCue(cue, hab) {
+  var jobId = _encolar('CUE', soloDigitos(cue), hab);
+  return { status: 'ok', jobId: jobId, cache: estadoCue(cue) };
+}
+
+// Habilitado: valida el CUPA de un productor (en vivo)
+function solicitarCupa(cupa, hab) {
+  var jobId = _encolar('CUPA', String(cupa || '').trim().toUpperCase(), hab);
+  return { status: 'ok', jobId: jobId };
+}
+
+// Bot de guardia: pide pendientes (y deja su "latido" para el indicador en línea)
 function trabajosPendientes() {
+  PropertiesService.getScriptProperties().setProperty('botLastSeen', String(new Date().getTime()));
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
     var sh = hojaCola();
     var pend = leerObjetos(SH.COLA).filter(function (d) { return d.estado === 'PENDIENTE'; });
-    pend.forEach(function (d) { sh.getRange(d._fila, 4).setValue('EN_PROCESO'); });
-    return pend.map(function (d) { return { jobId: String(d.jobId), cue: String(d.cue) }; });
+    pend.forEach(function (d) { sh.getRange(d._fila, 5).setValue('EN_PROCESO'); });
+    return pend.map(function (d) { return { jobId: String(d.jobId), tipo: String(d.tipo), termino: String(d.termino) }; });
   } finally {
     lock.releaseLock();
   }
 }
 
-// El bot devuelve el dato scrapeado: se cachea en CUES y se computa el estado (Opción B)
+// ¿El bot está de guardia ahora? (latido en los últimos 15 s)
+function estadoPuente() {
+  var v = PropertiesService.getScriptProperties().getProperty('botLastSeen');
+  var last = v ? Number(v) : 0;
+  return { online: (new Date().getTime() - last) < 15000, lastSeen: last };
+}
+
+// Bot: devuelve el resultado scrapeado
 function entregarResultadoCue(jobId, datos) {
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -392,24 +421,32 @@ function entregarResultadoCue(jobId, datos) {
     if (!job) return { status: 'error', message: 'Job no encontrado' };
     var resultado;
     if (datos && datos.error) {
-      sh.getRange(job._fila, 4).setValue('ERROR');
-      resultado = JSON.stringify({ status: 'error', message: String(datos.error) });
+      sh.getRange(job._fila, 5).setValue('ERROR');
+      resultado = JSON.stringify({ message: String(datos.error) });
+    } else if (String(job.tipo) === 'CUPA') {
+      var out = { tipo: 'CUPA', lista: datos.lista || [] };
+      if (datos.unico && datos.unico.cue) {
+        guardarCue({ cue: datos.unico.cue, nombre: datos.unico.nombre, areaBovino: datos.unico.areaBovino, bovinos: datos.unico.bovinos, fechaDato: fechaHoy() });
+        var estU = estadoCue(datos.unico.cue); estU.enVivo = true;
+        out.semaforo = estU;
+      }
+      sh.getRange(job._fila, 5).setValue('LISTO');
+      resultado = JSON.stringify(out);
     } else {
       guardarCue({ cue: datos.cue, nombre: datos.nombre, areaBovino: datos.areaBovino, bovinos: datos.bovinos, fechaDato: fechaHoy() });
-      var est = estadoCue(datos.cue);
-      est.enVivo = true;
-      sh.getRange(job._fila, 4).setValue('LISTO');
+      var est = estadoCue(datos.cue); est.enVivo = true;
+      sh.getRange(job._fila, 5).setValue('LISTO');
       resultado = JSON.stringify(est);
     }
-    sh.getRange(job._fila, 6).setValue(new Date().getTime());
-    sh.getRange(job._fila, 7).setValue(resultado);
+    sh.getRange(job._fila, 7).setValue(new Date().getTime());
+    sh.getRange(job._fila, 8).setValue(resultado);
     return { status: 'success' };
   } finally {
     lock.releaseLock();
   }
 }
 
-// El habilitado consulta si su pedido ya tiene respuesta
+// Habilitado: consulta si su pedido ya tiene respuesta
 function resultadoCue(jobId) {
   var job = leerObjetos(SH.COLA).filter(function (d) { return String(d.jobId) === String(jobId); })[0];
   if (!job) return { status: 'expirado' };

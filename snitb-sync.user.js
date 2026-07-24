@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AretesApp - Bot Puente SNITB
 // @namespace    aretesapp
-// @version      1.1
+// @version      1.2
 // @description  Sincroniza área bovina y existencias de los CUE desde el SNITB (IPSA) hacia la hoja CUES de AretesApp. Corre con TU sesión iniciada; no guarda contraseñas.
 // @match        https://trazabilidad.ipsa.gob.ni/*
 // @grant        none
@@ -166,21 +166,55 @@
   };
 
   /* ---------------- modo de guardia (relay en vivo) ---------------- */
+  // Lista todos los establecimientos que aparecen al buscar un CUPA
+  async function listarPorCupa(cupa) {
+    const q = String(cupa || "").trim();
+    const url = "https://trazabilidad.ipsa.gob.ni/establecimientos.php?c=&pfechaini=2010-01-01&pfechafin=2026-12-31&q=" + encodeURIComponent(q) + "&search=Buscar";
+    const html = await (await fetch(url, { credentials: "include" })).text();
+    if (/login|iniciar sesi/i.test(html) && !/Establecimientos/i.test(html)) throw new Error("Sesión del SNITB vencida");
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const filas = [...doc.querySelectorAll("tr")].filter(tr => tr.querySelector('[title="BOVINOS"]'));
+    return filas.map(f => {
+      const link = f.querySelector("a.frame");
+      const tds = [...f.querySelectorAll("td")].map(td => td.textContent.trim().replace(/\s+/g, " "));
+      const cue = tds.find(t => /^\d{10,15}$/.test(t.replace(/\s/g, "")));
+      const badge = f.querySelector('[title="BOVINOS"]');
+      return {
+        cue: cue || "",
+        nombre: link ? (link.getAttribute("title") || link.textContent).trim().replace(/\.+$/, "") : "",
+        bovinos: badge ? Number(digitos(badge.textContent)) : "",
+        hrefDetalle: link ? link.getAttribute("href") : null
+      };
+    }).filter(x => x.cue);
+  }
+
   async function atenderPendientes() {
     let jobs = [];
     try { jobs = await apiGet("trabajosPendientes"); } catch (e) { return; }
     if (!Array.isArray(jobs) || !jobs.length) return;
     for (const j of jobs) {
       try {
-        const fila = await leerFila(j.cue);
-        const areas = await leerAreas(fila.hrefDetalle);
-        if (fila.bovinos === null || areas.areaBovino === null) throw new Error("dato incompleto en el SNITB");
-        await apiPost({ tipo: "entregarResultadoCue", jobId: j.jobId,
-          datos: { cue: digitos(j.cue), nombre: fila.nombre, areaBovino: areas.areaBovino, bovinos: fila.bovinos } });
-        log(`📡 Consulta atendida: ${j.cue} → ${fila.nombre} (${areas.areaBovino} Mz, ${fila.bovinos} bov.)`);
+        if (j.tipo === "CUPA") {
+          const lista = await listarPorCupa(j.termino);
+          let unico = null;
+          if (lista.length === 1) {
+            const areas = await leerAreas(lista[0].hrefDetalle);
+            unico = { cue: lista[0].cue, nombre: lista[0].nombre, areaBovino: areas.areaBovino, bovinos: lista[0].bovinos };
+          }
+          const listaLimpia = lista.map(x => ({ cue: x.cue, nombre: x.nombre, bovinos: x.bovinos }));
+          await apiPost({ tipo: "entregarResultadoCue", jobId: j.jobId, datos: { lista: listaLimpia, unico } });
+          log(`📡 CUPA ${j.termino}: ${lista.length} establecimiento(s)`);
+        } else {
+          const fila = await leerFila(j.termino);
+          const areas = await leerAreas(fila.hrefDetalle);
+          if (fila.bovinos === null || areas.areaBovino === null) throw new Error("dato incompleto en el SNITB");
+          await apiPost({ tipo: "entregarResultadoCue", jobId: j.jobId,
+            datos: { cue: digitos(j.termino), nombre: fila.nombre, areaBovino: areas.areaBovino, bovinos: fila.bovinos } });
+          log(`📡 CUE ${j.termino} → ${fila.nombre} (${areas.areaBovino} Mz, ${fila.bovinos} bov.)`);
+        }
       } catch (e) {
-        try { await apiPost({ tipo: "entregarResultadoCue", jobId: j.jobId, datos: { cue: digitos(j.cue), error: e.message } }); } catch (_) {}
-        log(`⚠️ Consulta ${j.cue}: ${e.message}`);
+        try { await apiPost({ tipo: "entregarResultadoCue", jobId: j.jobId, datos: { error: e.message } }); } catch (_) {}
+        log(`⚠️ ${j.termino}: ${e.message}`);
       }
       await espera(600);
     }
