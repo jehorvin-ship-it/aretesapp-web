@@ -1,53 +1,24 @@
-# AretesApp Web
+# AretesApp Web — v2 (Supabase + Puente SNITB en extensión de Chrome)
 
 Sistema de control de entrega y trazabilidad de aretes (CUIA) por **habilitado** y **productor**,
 para la operadora de la Alcaldía El Tortuguero (licencia IPSA).
 
-Reemplaza la app nativa de Android + el `index.html` local por **web-móvil** (HTML/CSS/JS) con
-**Google Sheets** como base de datos vía **Google Apps Script**.
-
-## Archivos
-
-| Archivo | Qué es |
+| Archivo / carpeta | Qué es |
 |---|---|
-| `index.html` | Página de inicio con acceso a los dos tableros. |
-| `habilitado.html` | Tablero del **habilitado** (reemplaza la app Android). |
-| `digitador.html` | Panel del **digitador** (tú). |
-| `backend.js` | Cliente de datos. **Async.** Modo remoto (Sheets) o local (localStorage). |
-| `Code.gs` | Backend en **Google Apps Script** (se pega en el editor de la hoja). |
-| `INSTALACION.md` | Paso a paso: Sheets + Apps Script + publicar en GitHub Pages. |
+| `index.html` | Inicio con acceso a los dos tableros. |
+| `habilitado.html` | Portal del **habilitado** (celular). |
+| `digitador.html` | Panel del **digitador** (con inicio de sesión). |
+| `backend.js` | Cliente de datos sobre Supabase (misma interfaz `Backend.*` que la v1). |
+| `config.js` | URL y clave pública de Supabase. **No lo sobrescribas al actualizar.** |
+| `supabase/schema.sql` | Base de datos: tablas, seguridad (RLS) y funciones. |
+| `supabase/agregar_digitador.sql` | Autoriza una cuenta como digitador. |
+| `extension/` | Extensión de Chrome **Puente SNITB** (no se sube a GitHub Pages). |
+| `Code.gs` | Backend viejo de Google Sheets. Solo como respaldo: no se publica ni se usa. |
 
-## Dos modos (los controla `backend.js`)
-
-```js
-const SCRIPT_URL = "";   // vacío  → LOCAL  (localStorage, pruebas sin internet)
-                         // con URL → REMOTO (Google Sheets, datos reales compartidos)
-```
-
-## Probar en LOCAL (sin Google todavía)
-
-Para que los dos tableros compartan datos deben abrirse desde el mismo origen. Levanta un servidor local en la carpeta:
-
-```bash
-python -m http.server 8000
-```
-
-y abre `http://localhost:8000/` . Entra como habilitado con número **1537** / PIN **1234**.
-Para reiniciar los datos de prueba: consola del navegador (F12) → `Backend._reset()`.
-
-## Pasar a PRODUCCIÓN (Google Sheets + GitHub)
-
-Sigue **`INSTALACION.md`**. Resumen: pega `Code.gs` en Apps Script, ejecuta `inicializar()`,
-despliega como Web App, copia la URL `/exec` a `SCRIPT_URL` en `backend.js`, y sube todo a GitHub Pages.
+Instalación paso a paso: **`INSTALACION.md`**.
 
 ## Flujo
-
-1. **Habilitado** crea un expediente y agrega sus productores (CUPA, CUE, cantidad) → estado `PENDIENTE_PAGO`.
-2. Paga en caja y lleva el recibo.
-3. **Digitador** ingresa el recibo y aprueba → el sistema asigna los **CUIA por productor** y descuenta el lote → `PAGADO`.
-4. **Digitador** copia, productor por productor, los datos al formulario del IPSA y marca cada entrega → `ENTREGADO`.
-5. **Habilitado** ve el estado y los CUIA asignados a cada productor.
-
-## Datos de prueba
-
-Habilitados `1537` y `1601` (PIN `1234`). Lote CUIA 15972996–15978995 (6000). Precio C$60.
+1. El **habilitado** crea un expediente con sus productores → `PENDIENTE_PAGO`.
+2. Paga en caja → el **digitador** aprueba con el recibo → se asignan los CUIA por productor (atómico) → `PAGADO`.
+3. El digitador pasa los datos al IPSA y marca cada entrega → `ENTREGADO`.
+4. Consultas de CUE/CUPA en vivo: habilitado → cola en Supabase → extensión (tiempo real) → SNITB → respuesta en segundos.

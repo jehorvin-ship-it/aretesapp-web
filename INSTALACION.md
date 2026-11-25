@@ -1,242 +1,83 @@
-# AretesApp — Instalación (Google Sheets + Apps Script + GitHub)
-
-Guía para poner la base de datos real en **Google Sheets** y publicar las web app en **GitHub Pages**.
-
-Arquitectura:
+# AretesApp v2 — Instalación (Supabase + extensión de Chrome)
 
 ```
-  Navegador (GitHub Pages)                Google
-  ┌─────────────────────┐   fetch()   ┌──────────────────────────┐
-  │ index.html          │  ─────────► │ Apps Script (Code.gs)    │
-  │ habilitado.html     │  ◄───────── │  doGet / doPost          │
-  │ digitador.html      │    JSON     │        ▼                 │
-  │ backend.js          │             │  Google Sheets (5 hojas) │
-  └─────────────────────┘             └──────────────────────────┘
+ Habilitado (celular)          Supabase (PostgreSQL + tiempo real)          Tu PC (Chrome)
+ habilitado.html  ── RPC ──►  funciones seguras  ◄── tiempo real ──  Extensión "Puente SNITB"
+ digitador.html   ── RPC ──►  tablas protegidas                       └─ pestaña del SNITB (tu sesión)
 ```
 
----
+**Qué cambia respecto a la v1**
+- La base de datos pasa de Google Sheets a **Supabase**: sin bloqueos de hoja, sin límites de Apps Script y con respuestas en milisegundos.
+- El puente ya no es un script de Tampermonkey, sino una **extensión de Chrome**:
+  - Al recargar el SNITB (F5), la guardia **sigue activa**.
+  - Arranca sola cuando abres Chrome.
+  - Abre la pestaña del SNITB si no está abierta.
+  - Te avisa con una notificación cuando la sesión del SNITB vence.
+- Las consultas de los habilitados llegan **al instante**: el bot ya no tiene que preguntar a cada rato si hay algo nuevo.
+- El digitador entra con **correo y contraseña**. Los PIN de los habilitados se guardan cifrados y se bloquean tras 5 intentos fallidos.
+- En el panel hay pestañas nuevas: **Habilitados** (alta, edición y cambio de PIN) y **Puente SNITB** (estado y registro de consultas).
 
-## 🆕 Novedades v9 (arreglos UX del portal del habilitado)
-
-Corrige tres cosas que notaste probando en el celular:
-
-1. **El CUE ya se ve completo.** El campo CUE ocupa toda la fila y usa tipografía
-   monoespaciada, así se lee entero (p. ej. `5589316189733`).
-2. **Se quitó el mensaje engañoso "CUE sin datos en la operadora".** Al validar el
-   CUPA o elegir un establecimiento, el estado del CUE se consulta **EN VIVO al SNITB**
-   por el puente. Si el puente no está en línea y no hay dato guardado, muestra un aviso
-   neutro ("No se pudo verificar el estado ahora…"), nunca el texto anterior.
-3. **Se autocompleta el NOMBRE de la persona.** Cuando el productor tiene varias fincas y
-   eliges una (o cuando tiene una sola), el nombre del productor se toma del SNITB y se
-   escribe solo en "Nombre del productor". El CUPA identifica a la persona; el nombre es el
-   mismo para todas sus fincas.
-
-**Para activar v9 hay que hacer 3 cosas:**
-
-1. **Apps Script:** pega el `Code.gs` nuevo y **redespliega** (Implementar → Gestionar
-   implementaciones → ✏ → **Nueva versión**). El relay ahora también pasa el nombre del productor.
-2. **Tampermonkey:** reemplaza el script por `snitb-sync.user.js` **v1.3** (lee el nombre de la
-   persona desde la ficha del establecimiento). Guarda y recarga el SNITB.
-3. **Celulares de los habilitados:** sube los archivos web nuevos y **borra la caché / recarga
-   completa** (o reinstala el acceso directo) para que tome el `habilitado.html` nuevo. La app
-   ya pide `backend.js?v=9`.
-
-> El nombre de la persona se lee de la **ficha del establecimiento** del SNITB (la lista de
-> Establecimientos no trae ese dato). El bot prueba varias etiquetas ("PRODUCTOR",
-> "PROPIETARIO", "NOMBRE DEL PRODUCTOR"…). Si en algún establecimiento no lo detecta, el
-> campo Nombre queda editable a mano (no se rompe nada) — avísame y ajusto la etiqueta exacta.
+> Los datos de la v1 (Google Sheets) ya se migraron a Supabase el 24/11/2026 y se verificaron uno por uno. La sección de migración se quitó del panel porque ya no se necesita.
 
 ---
 
-## PARTE A — Base de datos en Google Sheets
+## Paso 1 — Crear el proyecto en Supabase (5 min)
+1. Entra a <https://supabase.com> e inicia sesión (por ejemplo, con tu cuenta de GitHub).
+2. **New project**. Ponle nombre `aretesapp`, crea una contraseña de base de datos y guárdala. Como región, elige **East US** (es la más cercana a Nicaragua).
+3. Espera a que termine de crearse (1–2 min).
+4. Ve a **Project Settings → API** (o **Data API / API Keys**) y copia estos dos datos:
+   - **Project URL** → por ejemplo `https://abcdxyz.supabase.co`
+   - **anon public key** (o **Publishable key**)
+   > ⚠️ La clave **service_role** (o **secret**) NO se pone nunca en la app.
 
-1. Entra a <https://sheets.google.com> y crea una **hoja de cálculo nueva**. Ponle nombre, por ejemplo `AretesApp DB`.
-2. Menú **Extensiones → Apps Script**. Se abre el editor.
-3. Borra lo que venga en `Código.gs` y **pega todo el contenido de `Code.gs`** de este proyecto. Guarda (💾).
-4. En el editor, arriba selecciona la función **`inicializar`** y pulsa **Ejecutar** (▶).
-   - Google pedirá permisos la primera vez → *Revisar permisos* → elige tu cuenta → *Avanzado* → *Ir a (nombre) (no seguro)* → *Permitir*.
-   - Esto crea las 5 pestañas (`Config`, `Habilitados`, `Productores`, `Expedientes`, `Detalle`) con datos de prueba.
-5. Vuelve a la hoja de cálculo: verás las pestañas creadas. Aquí puedes editar precio, lote y habilitados a mano cuando quieras.
-6. **Cargar los habilitados reales de la operadora:** en el editor selecciona la función **`configurarOperadora`** y pulsa **Ejecutar**. Esto rellena `Config` si estaba vacío y carga la lista de habilitados con estado `ACTIVO` y PIN por defecto `1234`. Cambia los PIN por habilitado directamente en la hoja `Habilitados` cuando quieras.
+## Paso 2 — Crear la base de datos (2 min)
+1. En Supabase abre **SQL Editor → New query**.
+2. Pega **todo** el contenido de `supabase/schema.sql` y pulsa **Run**. Debe decir *Success*.
+   (Si algún día lo vuelves a ejecutar, no se pierde nada.)
 
-> **¿Mejor escribir los habilitados a mano?** No hace falta: `configurarOperadora()` los carga sin errores de tipeo. Si prefieres agregarlos/editarlos a mano, solo cuida que la columna **estado** diga `ACTIVO` (si la dejas en blanco ahora también funciona; el login solo bloquea si dice `PENDIENTE`, `INACTIVO` o `BLOQUEADO`).
+## Paso 3 — Crear tu usuario de digitador (2 min)
+1. **Authentication → Users → Add user → Create new user**. Escribe tu correo y una contraseña fuerte y marca **Auto Confirm User**.
+2. En **SQL Editor**, abre `supabase/agregar_digitador.sql`, cambia el correo por el tuyo y pulsa **Run**.
+3. Recomendado: en **Authentication → Sign In / Providers**, desactiva **Allow new users to sign up**. Así nadie más puede crearse una cuenta.
 
-### Publicar el Web App
+## Paso 4 — Configurar y probar la web (5 min)
+1. Abre `config.js` y pega tu **Project URL** y tu **anon key**.
+2. Prueba en tu PC antes de publicar. En la carpeta, ejecuta `python -m http.server 8000` y abre <http://localhost:8000/digitador.html>.
+3. Entra con el correo y la contraseña del Paso 3.
 
-6. En el editor de Apps Script: **Implementar → Nueva implementación**.
-7. Engranaje ⚙ → tipo **Aplicación web**.
-8. Configura:
-   - **Descripción:** AretesApp API
-   - **Ejecutar como:** *Yo (tu correo)*
-   - **Quién tiene acceso:** **Cualquier persona**  ← importante para que las web puedan llamarla
-9. **Implementar** → copia la **URL** que termina en `/exec`. Esa es tu `SCRIPT_URL`.
+## Paso 5 — Instalar la extensión "Puente SNITB" (5 min)
+1. Abre `extension/config.js` y pega **los mismos** URL y anon key.
+2. En Chrome, abre `chrome://extensions` y activa **Modo de desarrollador** (arriba a la derecha).
+3. Pulsa **Cargar descomprimida** y elige la carpeta `extension`.
+4. Fija el ícono 🏷️ en la barra: botón de rompecabezas → 📌.
+5. **Desactiva el script viejo de Tampermonkey** ("AretesApp - Bot Puente SNITB"). Si no lo haces, verás dos paneles.
+6. Clic en el ícono → entra con tu correo y contraseña de digitador. La guardia se activa sola.
+7. Pulsa **Abrir SNITB** e inicia sesión en el SNITB como siempre.
+8. La insignia del ícono te dice el estado:
+   - **ON** (verde): en guardia, todo bien.
+   - **!** (amarillo): falta iniciar sesión en el SNITB o en la extensión.
+   - **OFF**: guardia apagada.
 
-> Cada vez que cambies el `Code.gs`, usa **Implementar → Gestionar implementaciones → editar (✏) → Nueva versión** para que los cambios salgan en vivo (así la URL no cambia).
+**Para que nunca se caiga:**
+- No cierres la pestaña fijada del SNITB. Si la cierras, la extensión la vuelve a abrir cuando llegue una consulta.
+- Chrome → Configuración → Rendimiento → **Ahorro de memoria**: agrega `trazabilidad.ipsa.gob.ni` a "Mantener siempre activos estos sitios".
+- Si la sesión del SNITB vence, te sale una notificación. Haz clic en ella, inicia sesión y listo: la guardia sigue sola.
 
----
+## Paso 6 — Publicar (el cambio)
+1. Sube a tu repositorio de GitHub (`aretesapp-web`):
+   - Los archivos de la web: `index.html`, `habilitado.html`, `digitador.html`, `backend.js`, `config.js`, `manifest.json` y los íconos.
+   - La carpeta `supabase/` también, como referencia (no tiene secretos).
+   - **No subas** la carpeta `extension/` ni `Code.gs`.
+2. Borra del repositorio `snitb-sync.user.js` y `Code.gs`. Ya no se usan.
+3. Pide a los habilitados que **recarguen la app** (o borren la caché). Entran con el mismo número y PIN de siempre.
 
-## PARTE B — Conectar el frontend
+## Prueba final (2 min)
+1. En tu celular, entra como habilitado → **Estado CUE** → debe decir **● En línea**.
+2. Consulta un CUE: debe responder en 2–5 segundos con "Datos en vivo".
+3. Ahora recarga la pestaña del SNITB con **F5** y vuelve a consultar: debe seguir respondiendo. ✅
+4. En el panel → pestaña **Puente SNITB** → verás cada consulta con su tiempo de respuesta.
 
-1. Abre `backend.js` y pega tu URL en la línea:
-
-   ```js
-   const SCRIPT_URL = "https://script.google.com/macros/s/XXXXXXXX/exec";
-   ```
-
-   - Con URL puesta → modo **REMOTO** (Google Sheets, datos compartidos de verdad).
-   - Vacía `""` → modo **LOCAL** (localStorage, para pruebas).
-
-2. Prueba local rápida: abre `digitador.html`; en la consola (F12) debe decir `Backend en modo: REMOTO (Google Sheets)` y cargar sin errores.
-
----
-
-## PARTE C — Subir a GitHub y publicar (GitHub Pages)
-
-1. Crea un repositorio nuevo en GitHub (ej. `aretesapp-web`).
-2. Sube estos archivos (por la web con *Add file → Upload files*, o por consola):
-
-   ```
-   index.html
-   habilitado.html
-   digitador.html
-   backend.js
-   manifest.json
-   icon-192.png
-   icon-512.png
-   icon-maskable-512.png
-   README.md
-   INSTALACION.md
-   Code.gs          (referencia; el que corre es el pegado en Apps Script)
-   ```
-
-   Por consola:
-
-   ```bash
-   git init
-   git add .
-   git commit -m "AretesApp web"
-   git branch -M main
-   git remote add origin https://github.com/TU_USUARIO/aretesapp-web.git
-   git push -u origin main
-   ```
-
-3. En el repo: **Settings → Pages → Build and deployment → Source: Deploy from a branch**, rama `main`, carpeta `/root`. Guardar.
-4. En 1-2 minutos tu app queda pública en:
-   - `https://TU_USUARIO.github.io/aretesapp-web/`  (landing)
-   - `.../habilitado.html` y `.../digitador.html`
-
-Los habilitados abren el enlace `habilitado.html` en su celular y pueden **instalarlo** desde el menú del navegador ("Agregar a pantalla de inicio").
-
----
-
-## Estructura de las hojas (referencia)
-
-**Config** — precio · cuiaSiguiente · cuiaFinLote
-**Habilitados** — numero · nombre · cedula · pin · estado
-**Productores** — cupa · nombre · cue · habilitadoNumero
-**Expedientes** — id · fecha · categoria · habilitadoNumero · habilitadoNombre · estado · recibo · controlPago · totalAretes · total · fechaAprobacion
-**Detalle** — expedienteId · idx · cupa · nombre · cue · cantidad · cuiaInicial · cuiaFinal · entregado · recibo (opcional, cuando se usa "Recibo por productor")
-
-Estados de un expediente: `PENDIENTE_PAGO` → `PAGADO` (recibo + CUIA asignados) → `ENTREGADO` (todos sus productores marcados en el IPSA).
-
----
-
-## Novedades de esta versión
-
-- **Categoría OPERADORES sin CUE:** al elegir "Operadores" en el portal del habilitado, el campo CUE
-  se oculta (la entrega es directa al habilitado). En "Productores" el CUE se usa normal.
-- **Recibo por productor (opcional):** en Pendientes de Aprobar, marca "Recibo por productor" para
-  escribir un recibo distinto a cada productor. Si no lo marcas, funciona como siempre (un recibo para todo
-  el expediente). La columna `recibo` de la hoja `Detalle` se crea sola la primera vez que se usa.
-- **Subtotal y detalle por productor:** en "Mis expedientes" cada productor muestra su total en C$;
-  al tocar la línea se abre un modal con TODOS sus datos (nombre completo, CUPA, CUE, cantidad,
-  subtotal, CUIA, recibo, estado de entrega).
-- **Edición de expedientes:** el habilitado puede editar un expediente (productores, cantidades,
-  categoría, fecha) SOLO mientras está "Pendiente de pago". Al aprobarse (Pagado/Entregado) queda bloqueado.
-- **Recibo único registrado por productor:** al aprobar con un solo recibo, ahora también se guarda
-  en la columna `recibo` de cada productor en la hoja `Detalle` (igual que el modo por productor).
-  Para rellenar expedientes viejos, ejecuta una vez la función **`rellenarRecibosFaltantes()`**.
-- **Fechas legibles:** las fechas se muestran siempre como dd/mm/aaaa.
-- **IMPORTANTE:** pega el `Code.gs` nuevo en Apps Script y **redespliega**
-  (Implementar → Gestionar implementaciones → ✏ → Nueva versión) para activar estas funciones.
-
-## Estado del CUE + Bot Puente SNITB
-
-**Qué hace:** los habilitados consultan en su portal si un establecimiento (CUE) tiene espacio para
-identificar bovinos. Capacidad = área bovina declarada (Mz) × **factor de carga** (Configuración, por
-defecto 1.5). Existencias estimadas = bovinos según SNITB **+ aretes entregados por la operadora desde
-la fecha del dato**. Semáforo: verde disponible · ámbar casi lleno (umbral configurable) · rojo LLENO
-(no identificar; el productor debe actualizar áreas ante el IPSA).
-
-**Para activarlo:** pega el `Code.gs` nuevo y **redespliega** (Nueva versión). La hoja `CUES`
-(cue · nombre · areaBovino · bovinos · fechaDato) se crea sola.
-
-**Cómo alimentar los datos (el digitador es el puente):**
-
-1. *Manual:* pestaña **CUEs** del panel del digitador → llenas CUE, nombre, área bovina, bovinos y fecha
-   (los ves en el SNITB → Establecimientos, como la insignia verde "BOVINOS" y la ficha con ÁREA BOVINO (MZ)).
-2. *Automático (recomendado):* instala la extensión gratuita **Tampermonkey** en tu Chrome →
-   crea un script nuevo → pega el contenido de **`snitb-sync.user.js`** (ya trae tu SCRIPT_URL) → guarda.
-   Al entrar a `trazabilidad.ipsa.gob.ni` con tu sesión verás el panel flotante
-   **"AretesApp — Puente SNITB"**: sincroniza un CUE escribiéndolo, o pulsa
-   *Sincronizar TODOS* para actualizar de un jalón todos los CUE ya registrados.
-   El bot usa TU sesión abierta (no guarda contraseñas) y escribe en la hoja `CUES` con la fecha de hoy.
-   Si el SNITB cambia su diseño, el bot avisa el error y siempre queda el registro manual.
-
-> El factor 1.5 no está en la normativa publicada del IPSA (es criterio operativo); por eso es
-> configurable en la pestaña Configuración. Si el IPSA lo confirma distinto, lo cambias sin tocar código.
-
-### Consulta EN VIVO (relay) + respaldo caché
-
-Ahora la consulta de Estado CUE del habilitado trae el dato **en tiempo real del SNITB**:
-
-1. El habilitado consulta un CUE en su app → el pedido se encola en el Apps Script (hoja `ColaCue`,
-   se crea sola).
-2. En tu navegador, con el bot abierto en `trazabilidad.ipsa.gob.ni`, activa el interruptor
-   **🛡️ Modo de guardia**. El bot revisa la cola cada pocos segundos, busca ese CUE en el SNITB con TU
-   sesión y devuelve el dato. El habilitado lo ve con la banda verde **"● Datos en vivo del SNITB"**.
-3. De paso, cada consulta en vivo se **cachea** en la hoja `CUES`. Así, si el bot NO está de guardia,
-   el habilitado igual ve el **último dato real** con su fecha y el aviso "no se pudo actualizar en vivo".
-   Si nunca se consultó ese CUE y el bot está apagado, ve "el puente no está disponible".
-
-**Requisito:** tené el bot abierto y el **Modo de guardia activado** en horario de oficina (cuando los
-habilitados consultan). Cada consulta toca UN solo CUE (buscar + abrir ficha), así que no satura el SNITB.
-Fuera de horario, el respaldo caché cubre. El bot solo LEE del SNITB; nunca escribe ahí.
-
-### Validación de CUPA en vivo + indicador de puente
-
-- **Alta de productor validada:** al crear el expediente, cuando el habilitado escribe el **CUPA** del
-  productor, el bot lo verifica contra el SNITB y devuelve sus **establecimientos** (CUE). Si el productor
-  tiene una sola finca, autocompleta el CUE y muestra el semáforo; si tiene varias, aparece un selector
-  "elige a cuál van los aretes"; si no existe, avisa "CUPA no encontrado". Esto evita el error que hace que
-  el IPSA rechace la entrega. Requiere el bot de guardia; si no está, usa lo guardado o avisa que no validó en vivo.
-- **Indicador de puente:** en la pestaña *Estado CUE* el habilitado ve "● En línea" cuando el bot está de
-  guardia, o "○ Sin conexión — verás el último dato guardado". Así sabe si el dato es en vivo o de respaldo.
-  (El bot deja un "latido" cada pocos segundos vía PropertiesService; no requiere configurar nada.)
-
-
-
-## Solución de problemas
-
-- **El scroll solo funciona con 2 dedos / la app se ve como una versión vieja:** el celular está
-  cargando una versión ANTERIOR desde la caché (GitHub Pages y Chrome guardan copias hasta ~10 min o más;
-  si la app está "instalada" en la pantalla de inicio, la copia puede durar días). Después de subir archivos
-  nuevos: espera 2-10 minutos, luego en Chrome del celular abre ⋮ → Historial → Borrar datos de navegación →
-  "Imágenes y archivos en caché" (o mantén presionado el botón recargar y elige recarga completa).
-  Si la instalaste en pantalla de inicio, elimínala y vuélvela a agregar. Esta versión además carga
-  `backend.js?v=3`, que fuerza al navegador a traer el JS nuevo.
-
-- **"Cuenta pendiente de aprobación" al entrar:** la columna `estado` del habilitado está en blanco o dice algo distinto de `ACTIVO`. Ejecuta `configurarOperadora()` o pon `ACTIVO` a mano. (La versión nueva del `Code.gs` ya no bloquea por estado en blanco — recuerda **redesplegar** después de pegar el código actualizado: *Implementar → Gestionar implementaciones → editar ✏ → Nueva versión*.)
-- **Totales en C$ 0:** la hoja `Config` está vacía. Ejecuta `configurarOperadora()` (rellena precio y lote por defecto) o escribe los valores en la fila 2.
-- **Cambié el `Code.gs` y no se refleja:** los cambios en funciones que corres desde el editor aplican al instante; pero los que afectan al Web App (doGet/doPost, login) requieren **Nueva versión** en Gestionar implementaciones.
-
-## Seguridad (ojo)
-
-- La URL `/exec` con acceso "Cualquier persona" queda pública: quien la tenga puede leer/escribir. Para un sistema interno de bajo riesgo suele bastar, pero conviene:
-  - No publicar la `SCRIPT_URL` en sitios visibles.
-  - Como mejora futura: agregar un "token" secreto que el frontend mande en cada llamada y el `Code.gs` valide, y hashear los PIN. Te lo puedo implementar cuando quieras.
-
-## Notas
-
-- Para reiniciar los datos de prueba en modo local: consola (F12) → `Backend._reset()`.
-- El precio se usa al **crear** el expediente. Si lo cambias en Config, aplica a los expedientes nuevos, no a los ya creados.
+## Mantenimiento
+- **Copia de seguridad:** Supabase (plan gratis) no guarda copias automáticas. Una vez a la semana, ve a **Table Editor**, abre `expedientes` y `detalle` → **Export → CSV**.
+- **Proyecto pausado:** en el plan gratis, el proyecto se pausa si pasa 7 días sin uso. Con el uso diario no pasa, pero si ocurre, entra a Supabase y pulsa **Restore**.
+- **Actualizar la extensión:** reemplaza los archivos de la carpeta y pulsa ⟳ en `chrome://extensions`. No sobrescribas `extension/config.js`.

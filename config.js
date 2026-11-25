@@ -1,16 +1,17 @@
 /* =====================================================================
-   AretesApp - CONFIGURACIÓN DE CONEXIÓN  (config.js)
+   AretesApp v2 - CONFIGURACIÓN DE CONEXIÓN (config.js)
    ---------------------------------------------------------------------
-   Este es el ÚNICO archivo donde se configura la conexión a la base
-   de datos (Google Sheets vía Apps Script).
+   Único archivo donde se configura la conexión a Supabase.
+   Los dos datos están en Supabase → Project Settings → API:
+     • Project URL           → SUPABASE_URL
+     • anon / public key     → SUPABASE_ANON_KEY   (es pública, es seguro
+                                que esté aquí: la base está protegida por
+                                RLS y funciones con validación)
+   NUNCA pongas aquí la "service_role key".
 
-   >>> Pega aquí la URL /exec de tu implementación del Apps Script <<<
-
-   - Con URL     => modo REMOTO (datos reales en Google Sheets)
-   - Vacía ("")  => modo LOCAL de prueba (localStorage del navegador)
-
-   IMPORTANTE: cuando actualices la app con archivos nuevos (zip),
-   NO sobrescribas este archivo, así tu URL se conserva.
+   Cuando actualices la app con archivos nuevos, NO sobrescribas este
+   archivo, así tus claves se conservan.
    ===================================================================== */
 
-window.SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyLqMOwccxqgW49geXTKJdi9Lp6teRShV2nduu8kgDV4_Sg_BmL4V-pwDt-tLlOhVgUVw/exec";
+window.SUPABASE_URL      = "https://vzgvrinetlfizlsenwgh.supabase.co";   // ej. ""
+window.SUPABASE_ANON_KEY = "sb_publishable_F71q5CaD3P3IUMIqXoVZ8Q_Hrp5gMKt";   // ej. ""

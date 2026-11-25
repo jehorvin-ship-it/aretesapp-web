@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0b1120">
+<meta name="theme-color" content="#1F5E3B">
 <meta name="format-detection" content="telephone=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -16,7 +16,7 @@
   :root{
     --primary:#00d2ff; --primary-d:#0891b2;
     --bg:#0b1120; --bg2:#101a30; --card:#18233a; --card2:#1f2c47;
-    --text:#f1f5f9; --muted:#9aa8bd; --line:rgba(255,255,255,.09);
+    --text:#f1f5f9; --muted:#9aa8bd; --line:rgba(255,255,255,.12);
     --success:#10b981; --warn:#f59e0b; --danger:#ef4444;
     --safe-t:env(safe-area-inset-top,0px);
     --safe-b:env(safe-area-inset-bottom,0px);
@@ -35,12 +35,12 @@
   .muted{color:var(--muted);}
 
   /* ====== Aviso "sitio de escritorio" ====== */
-  #desktopWarn{display:none;position:fixed;inset:0;z-index:999;background:rgba(5,10,20,.96);
+  #desktopWarn{display:none;position:fixed;inset:0;z-index:999;background:rgba(238,242,236,.97);
     flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:32px;}
   #desktopWarn .dw-ico{font-size:3rem;margin-bottom:14px;}
   #desktopWarn h3{color:var(--primary);margin:0 0 10px;font-size:1.25rem;}
   #desktopWarn p{color:var(--muted);max-width:340px;font-size:1rem;margin:0 0 22px;}
-  #desktopWarn b{color:#fff;}
+  #desktopWarn b{color:var(--text);}
   #desktopWarn button{padding:14px 26px;border-radius:14px;border:1px solid var(--primary);
     background:transparent;color:var(--primary);font-weight:700;}
 
@@ -48,7 +48,7 @@
   #loginView{min-height:100dvh;display:flex;flex-direction:column;justify-content:center;
              padding:calc(var(--safe-t) + 26px) 20px calc(var(--safe-b) + 26px);max-width:520px;margin:0 auto;width:100%;}
   .logo-wrap{text-align:center;margin-bottom:28px;}
-  .logo-badge{width:88px;height:88px;border-radius:26px;background:linear-gradient(145deg,#13223c,#0b1120);
+  .logo-badge{width:88px;height:88px;border-radius:26px;background:linear-gradient(145deg,#F2B705,#E0A800);
               border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;
               box-shadow:0 10px 34px rgba(0,0,0,.45);}
   .logo-badge span{font-size:40px;}
@@ -57,11 +57,11 @@
   .login-card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:24px 20px;}
   .lbl{display:block;font-size:.92rem;color:var(--muted);margin:0 0 8px 4px;font-weight:600;}
   .inp{width:100%;padding:17px 16px;border-radius:15px;border:1.5px solid var(--line);background:var(--bg2);
-       color:#fff;transition:border .15s;font-size:18px;}
+       color:var(--text);transition:border .15s;font-size:18px;}
   .inp:focus{outline:none;border-color:var(--primary);}
   .field{margin-bottom:18px;}
   .btn-primary{width:100%;padding:18px;border-radius:15px;border:none;font-weight:800;font-size:1.08rem;
-       letter-spacing:.02em;background:linear-gradient(135deg,var(--primary),var(--primary-d));color:#03222b;cursor:pointer;
+       letter-spacing:.02em;background:linear-gradient(135deg,var(--primary),var(--primary-d));color:#04202a;cursor:pointer;
        transition:transform .08s,filter .15s;}
   .btn-primary:active{transform:scale(.97);}
   .btn-primary:disabled{opacity:.6;}
@@ -69,7 +69,7 @@
 
   /* ====== APP SHELL ====== */
   #appView{min-height:100dvh;display:flex;flex-direction:column;}
-  .appbar{position:sticky;top:0;z-index:20;background:rgba(11,17,32,.94);backdrop-filter:blur(12px);
+  .appbar{position:sticky;top:0;z-index:20;background:rgba(11,17,32,.85);backdrop-filter:blur(12px);
           border-bottom:1px solid var(--line);
           padding:calc(var(--safe-t) + 14px) 18px 14px;
           display:flex;align-items:center;justify-content:space-between;gap:12px;}
@@ -92,12 +92,12 @@
   .seg{display:flex;background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:6px;gap:6px;margin-bottom:16px;}
   .seg button{flex:1;padding:15px 8px;border:none;background:transparent;color:var(--muted);border-radius:12px;font-weight:700;
               font-size:1rem;cursor:pointer;transition:.15s;}
-  .seg button.on{background:linear-gradient(135deg,var(--primary),var(--primary-d));color:#03222b;}
+  .seg button.on{background:linear-gradient(135deg,var(--primary),var(--primary-d));color:#04202a;}
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:16px;}
   .field-lbl{font-size:.88rem;color:var(--muted);margin:0 0 8px 4px;font-weight:600;}
 
-  .inp-sm{width:100%;padding:16px 15px;border-radius:14px;border:1.5px solid var(--line);background:var(--bg2);color:#fff;font-size:17px;}
+  .inp-sm{width:100%;padding:16px 15px;border-radius:14px;border:1.5px solid var(--line);background:var(--bg2);color:var(--text);font-size:17px;}
   .inp-sm:focus{outline:none;border-color:var(--primary);}
   .p-cue{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;letter-spacing:.5px;}
 
@@ -156,7 +156,7 @@
             padding:9px 16px;border-radius:12px;font-weight:700;font-size:.85rem;cursor:pointer;}
   .btn-edit:active{background:rgba(0,210,255,.2);}
   /* modal detalle de productor */
-  .pmodal{position:fixed;inset:0;background:rgba(4,8,16,.88);display:none;justify-content:center;align-items:center;z-index:200;padding:18px;}
+  .pmodal{position:fixed;inset:0;background:rgba(18,30,22,.55);display:none;justify-content:center;align-items:center;z-index:200;padding:18px;}
   .pmodal.show{display:flex;}
   .pmodal-c{background:var(--card);border:1px solid rgba(0,210,255,.3);border-radius:20px;padding:22px;width:100%;max-width:420px;max-height:86vh;overflow-y:auto;}
   .pmodal-c h3{color:var(--primary);margin:0 0 14px;font-size:1.1rem;text-align:center;}
@@ -185,7 +185,7 @@
   .empty .em-ico{font-size:2.8rem;opacity:.5;margin-bottom:8px;}
 
   /* bottom nav */
-  .bottomnav{position:fixed;bottom:0;left:0;right:0;z-index:30;background:rgba(11,17,32,.97);backdrop-filter:blur(14px);
+  .bottomnav{position:fixed;bottom:0;left:0;right:0;z-index:30;background:rgba(15,23,42,.9);backdrop-filter:blur(14px);
              border-top:1px solid var(--line);display:flex;height:calc(var(--nav-h) + var(--safe-b));
              padding-bottom:var(--safe-b);}
   .bottomnav button{flex:1;background:none;border:none;color:var(--muted);cursor:pointer;
@@ -197,6 +197,9 @@
   .bottomnav button .dot{width:34px;height:4px;border-radius:4px;background:transparent;margin-top:2px;}
   .bottomnav button.on .dot{background:var(--primary);}
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tema.css?v=5">
 </head>
 <body>
 
@@ -315,7 +318,9 @@
   </nav>
 </div>
 
-<script src="backend.js?v=9"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js"></script>
+<script src="config.js?v=10"></script>
+<script src="backend.js?v=13"></script>
 <script>
   /* ---- Bloqueo de zoom ----
      El pellizco queda bloqueado por el viewport (user-scalable=no) y el
@@ -355,17 +360,23 @@
     try{
       const res = await Backend.login(num, pin);
       if(res.status !== 'ok'){ msg.innerHTML='<div class="msg msg-err">'+res.message+'</div>'; btn.disabled=false; return; }
-      habilitadoActual = res.habilitado;
-      const cfg = await Backend.getConfig(); PRECIO = cfg.precio;
       msg.innerHTML='';
-      document.getElementById('loginView').classList.add('hidden');
-      document.getElementById('appView').classList.remove('hidden');
-      document.getElementById('hNombre').textContent = habilitadoActual.nombre;
-      document.getElementById('hNumero').textContent = habilitadoActual.numero;
-      initNuevo(); refrescarDisponible();
+      await abrirApp(res.habilitado);
     }catch(e){ msg.innerHTML='<div class="msg msg-err">Error de conexión. Revisa tu internet.</div>'; btn.disabled=false; }
   }
-  function cerrarSesion(){ if(confirm('¿Cerrar sesión?')) location.reload(); }
+  async function abrirApp(h){
+    habilitadoActual = h;
+    document.getElementById('loginView').classList.add('hidden');
+    document.getElementById('appView').classList.remove('hidden');
+    document.getElementById('hNombre').textContent = h.nombre || '';
+    document.getElementById('hNumero').textContent = h.numero || '';
+    try{ const cfg = await Backend.getConfig(); PRECIO = cfg.precio; }catch(e){}
+    initNuevo(); refrescarDisponible();
+  }
+  async function cerrarSesion(){ if(confirm('¿Cerrar sesión?')){ try{ await Backend.logout(); }catch(e){} location.reload(); } }
+  window.addEventListener('aretes:sesion-vencida', ()=>{ if(habilitadoActual){ alert('Tu sesión venció. Vuelve a entrar con tu número y PIN.'); location.reload(); } });
+  // Si ya había entrado, se recupera la sesión sin pedir el PIN otra vez
+  window.addEventListener('load', ()=>{ const h = Backend.habilitadoGuardado(); if(h && h.numero) abrirApp(h); });
   async function refrescarDisponible(){ try{ document.getElementById('hDisponible').textContent = (await Backend.disponibleLote()).toLocaleString(); }catch(e){} }
 
   /* ---------- TABS ---------- */
@@ -505,7 +516,7 @@
 
   /* ---------- ESTADO CUE ---------- */
   let ultimoEstadoCue = null;
-  const CUE_COLORES = { DISPONIBLE:'#10b981', CASI_LLENO:'#f59e0b', LLENO:'#ef4444', SIN_DATOS:'#94a3b8' };
+  const CUE_COLORES = { DISPONIBLE:'#10b981', CASI_LLENO:'#f59e0b', LLENO:'#ef4444', SIN_DATOS:'#5E6E63' };
 
   async function prepararTabCue(){
     refrescarPuente(); iniciarPuentePoll();
@@ -533,14 +544,19 @@
     if(tieneCache){ ultimoEstadoCue = sol.cache; renderEstadoCue(sol.cache, 'actualizando'); }
     else { cont.innerHTML='<div class="empty">Consultando el SNITB en vivo…<br><small>Puede tardar unos segundos.</small></div>'; }
     if(!sol.jobId){ if(!tieneCache) renderEstadoCue(sol.cache||{status:'sin_datos',cue}, 'cache'); return; }
-    const t0=Date.now(); let vivo=null;
-    while(Date.now()-t0 < 20000){
-      await sleep(1300);
-      let res; try{ res = await Backend.resultadoCue(sol.jobId); }catch(e){ continue; }
-      if(res.status==='listo'){ vivo = res.datos; break; }
-      if(res.status==='error' || res.status==='expirado'){ break; }
-    }
+    let vivo=null, errSnitb=null;
+    { const res = await Backend.esperarResultado(sol.jobId, 40000); if(res.status==='listo') vivo = res.datos; else if(res.status==='error') errSnitb = res.message; }
     if(vivo){ ultimoEstadoCue = vivo; renderEstadoCue(vivo, 'vivo'); }
+    else if(errSnitb){
+      const c = (sol.cache && sol.cache.cue) ? sol.cache.cue : cue;
+      const noExiste = /no encontrado/i.test(errSnitb);
+      cont.innerHTML = `<div class="card" style="border-color:rgba(239,68,68,.35)">
+        <div class="cue-head"><b>CUE ${c}</b><span class="pill" style="background:rgba(239,68,68,.15);color:#fca5a5">${noExiste?'No encontrado':'No se pudo consultar'}</span></div>
+        <p class="muted" style="font-size:.9rem">${noExiste
+          ? '✗ El SNITB no tiene registrado este CUE. Revisa que el número esté bien escrito (sin el prefijo del municipio también funciona).'
+          : '⚠️ '+String(errSnitb).replace(/[<>&]/g,'')}</p></div>`;
+      if(tieneCache) renderEstadoCue(sol.cache, 'cache_sinvivo');   // hay dato guardado: se muestra ese
+    }
     else if(tieneCache){ renderEstadoCue(sol.cache, 'cache_sinvivo'); }
     else {
       const c = (sol.cache && sol.cache.cue) ? sol.cache.cue : cue;
@@ -561,7 +577,7 @@
     const cont = document.getElementById('cueResultado');
     if(r.status==='sin_datos'){
       cont.innerHTML = `<div class="card" style="border-color:rgba(148,163,189,.35)">
-        <div class="cue-head"><b>CUE ${r.cue}</b><span class="pill" style="background:rgba(148,163,189,.15);color:#cbd5e1">Sin datos</span></div>
+        <div class="cue-head"><b>CUE ${r.cue}</b><span class="pill" style="background:rgba(148,163,189,.15);color:#5E6E63">Sin datos</span></div>
         <p class="muted" style="font-size:.9rem">Este establecimiento aún no está registrado en la base de la operadora.
         Pídele al digitador que lo agregue (se sincroniza desde el SNITB).</p></div>`;
       return;
@@ -636,13 +652,9 @@
     const cache = sol && sol.cache && sol.cache.status==='ok' ? sol.cache : null;
     if(cache) pintarSemaforoProd(slot, cache);
     if(sol && sol.jobId){
-      const t0=Date.now(); let vivo=null;
-      while(Date.now()-t0 < 16000){
-        await sleep(1300);
-        let res; try{ res = await Backend.resultadoCue(sol.jobId); }catch(e){ continue; }
-        if(res.status==='listo'){ vivo=res.datos; break; }
-        if(res.status==='error' || res.status==='expirado'){ break; }
-      }
+      let vivo=null;
+      { const res = await Backend.esperarResultado(sol.jobId, 40000); if(res.status==='listo') vivo=res.datos;
+        else if(res.status==='error' && !cache && /no encontrado/i.test(res.message||'')){ slot.innerHTML='<span style="color:#fca5a5">✗ Este CUE no existe en el SNITB. Verifica el número.</span>'; return; } }
       if(vivo && vivo.status==='ok'){
         pintarSemaforoProd(slot, vivo);
         const nom=(vivo.nombreProductor||'').trim();
@@ -651,7 +663,7 @@
       }
     }
     if(cache) return;                    // ya mostramos el último dato real
-    slot.innerHTML = '<span style="color:#94a3b8">No se pudo verificar el estado ahora. Revísalo en la pestaña «Estado CUE».</span>';
+    slot.innerHTML = '<span style="color:#5E6E63">No se pudo verificar el estado ahora. Revísalo en la pestaña «Estado CUE».</span>';
   }
 
   /* ---------- VALIDACIÓN DE CUPA EN VIVO + PUENTE ---------- */
@@ -667,12 +679,14 @@
     look.className='lookup'; look.innerHTML=(localP?('✓ '+localP.nombre+' — '):'')+'<span class="muted">verificando CUPA en el SNITB…</span>';
     let sol; try{ sol=await Backend.solicitarCupa(val); }catch(e){ sol=null; }
     if(!sol||!sol.jobId){ if(!localP) look.textContent=''; return; }
-    const t0=Date.now(); let datos=null;
-    while(Date.now()-t0<20000){ await sleep(1300); let res; try{ res=await Backend.resultadoCue(sol.jobId); }catch(e){ continue; }
-      if(res.status==='listo'){ datos=res.datos; break; } if(res.status==='error'||res.status==='expirado'){ break; } }
+    let datos=null, errC=null;
+    { const res=await Backend.esperarResultado(sol.jobId, 40000); if(res.status==='listo') datos=res.datos; else if(res.status==='error') errC=res.message; }
+    if(!datos && errC){ look.className='lookup';
+      look.innerHTML = (localP ? '✓ '+localP.nombre+' (guardado) · ' : '') + '<span style="color:#fca5a5">No se pudo validar en el SNITB: '+String(errC).replace(/[<>&]/g,'')+'</span>';
+      return; }
     if(!datos){ look.className='lookup';
-      look.innerHTML = localP ? '✓ '+localP.nombre+' (guardado) · <span style="color:#94a3b8">no se validó en vivo</span>'
-                              : '<span style="color:#94a3b8">No se pudo validar en vivo (puente sin conexión).</span>';
+      look.innerHTML = localP ? '✓ '+localP.nombre+' (guardado) · <span style="color:#5E6E63">no se validó en vivo</span>'
+                              : '<span style="color:#5E6E63">No se pudo validar en vivo (puente sin conexión).</span>';
       return; }
     const lista=datos.lista||[];
     const nombreSNITB=(datos.nombreProductor||'').trim();
@@ -705,7 +719,9 @@
     let p; try{ p=await Backend.estadoPuente(); }catch(e){ p={online:false}; }
     el.innerHTML = p.online
       ? '<span style="color:#6ee7b7">● En línea — consultas en vivo disponibles</span>'
-      : '<span style="color:#94a3b8">○ Sin conexión al puente — verás el último dato guardado</span>';
+      : (p.conectado
+        ? '<span style="color:#fcd34d">◐ Puente conectado, pero la sesión del SNITB está cerrada — verás el último dato guardado</span>'
+        : '<span style="color:#5E6E63">○ Sin conexión al puente — verás el último dato guardado</span>');
   }
   function iniciarPuentePoll(){ if(puenteInt) return; puenteInt=setInterval(()=>{ const v=document.getElementById('viewCue'); if(v && !v.classList.contains('hidden')) refrescarPuente(); }, 15000); }
 

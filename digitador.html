@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0f172a">
+<meta name="theme-color" content="#1F5E3B">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Panel Digitador - AretesApp</title>
 <style>
-  :root { --primary:#00d2ff; --bg:#0f172a; --card:#1e293b; --text:#f8fafc; --success:#10b981; --warn:#FFAB40; --danger:#ef4444; --muted:#94a3b8; }
+  :root { --primary:#00d2ff; --bg:#0f172a; --card:#1e293b; --text:#f8fafc; --success:#10b981; --warn:#B7791F; --danger:#ef4444; --muted:#9aa8bd; }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulation;}
   html,body{width:100%;max-width:100%;overflow-x:hidden;overflow-x:clip;overscroll-behavior-x:none;}
@@ -19,13 +19,13 @@
   h1{color:var(--primary);text-align:center;font-weight:300;margin:8px 0 6px;}
   .subtitle{text-align:center;color:var(--muted);font-size:.8rem;margin-bottom:20px;}
   .tabs{display:flex;justify-content:center;gap:8px;margin-bottom:22px;flex-wrap:wrap;}
-  .tab-btn{background:var(--card);border:1px solid rgba(255,255,255,.1);color:#fff;padding:10px 18px;border-radius:8px;cursor:pointer;font-size:.85rem;}
+  .tab-btn{background:var(--card);border:1px solid rgba(255,255,255,.12);color:var(--text);padding:10px 18px;border-radius:8px;cursor:pointer;font-size:.85rem;}
   .tab-btn.active{background:var(--primary);color:var(--bg);font-weight:bold;}
-  .card{background:var(--card);padding:22px;border-radius:15px;border:1px solid rgba(255,255,255,.1);display:none;}
+  .card{background:var(--card);padding:22px;border-radius:15px;border:1px solid rgba(255,255,255,.12);display:none;}
   .card.active{display:block;}
   .field{margin-bottom:16px;max-width:420px;margin-left:auto;margin-right:auto;}
   label{display:block;margin-bottom:6px;font-size:.82rem;color:var(--muted);}
-  input,select{width:100%;padding:11px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);color:#fff;box-sizing:border-box;}
+  input,select{width:100%;padding:11px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:#0e1729;color:var(--text);box-sizing:border-box;}
   .btn{padding:11px 16px;border-radius:8px;border:none;background:var(--primary);color:var(--bg);font-weight:bold;cursor:pointer;font-size:.9rem;}
   .btn-block{width:100%;max-width:420px;display:block;margin:10px auto;padding:14px;}
   .btn-ghost{background:transparent;border:1px solid var(--primary);color:var(--primary);}
@@ -34,8 +34,8 @@
   .search-box{display:flex;gap:10px;margin-bottom:18px;justify-content:center;flex-wrap:wrap;}
   .search-box input{max-width:230px;}
   table{width:100%;border-collapse:collapse;margin-top:6px;}
-  th{text-align:left;padding:11px;color:var(--primary);border-bottom:2px solid rgba(255,255,255,.1);font-size:.72rem;text-transform:uppercase;}
-  td{padding:11px;border-bottom:1px solid rgba(255,255,255,.06);font-size:.86rem;vertical-align:middle;}
+  th{text-align:left;padding:11px;color:var(--primary);border-bottom:2px solid rgba(255,255,255,.12);font-size:.72rem;text-transform:uppercase;}
+  td{padding:11px;border-bottom:1px solid rgba(255,255,255,.07);font-size:.86rem;vertical-align:middle;}
   .badge{padding:3px 9px;border-radius:20px;font-size:.7rem;font-weight:bold;white-space:nowrap;}
   .b-pag{background:rgba(0,210,255,.15);color:var(--primary);}
   .b-ent{background:rgba(16,185,129,.15);color:var(--success);}
@@ -46,28 +46,81 @@
   .chip{display:inline-block;background:rgba(0,210,255,.1);border:1px solid rgba(0,210,255,.3);padding:8px 14px;border-radius:10px;font-size:.8rem;margin-bottom:14px;}
   .chip b{color:var(--primary);}
   /* Ficha IPSA */
-  .exp-block{background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:16px;margin-bottom:18px;}
+  .exp-block{background:#101a30;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:16px;margin-bottom:18px;}
   .exp-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
   .ipsa-card{background:var(--card);border:1px solid rgba(0,210,255,.25);border-radius:10px;padding:14px;margin-bottom:12px;}
   .ipsa-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px;}
-  .ipsa-item{background:rgba(0,0,0,.25);border-left:3px solid var(--primary);border-radius:6px;padding:8px 10px;position:relative;}
+  .ipsa-item{background:#0e1729;border-left:3px solid var(--primary);border-radius:6px;padding:8px 10px;position:relative;}
   .ipsa-item .k{font-size:.66rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;}
-  .ipsa-item .v{font-weight:bold;font-family:monospace;font-size:1rem;color:#fff;word-break:break-all;padding-right:22px;}
+  .ipsa-item .v{font-weight:bold;font-family:monospace;font-size:1rem;color:var(--text);word-break:break-all;padding-right:22px;}
   .copy{position:absolute;top:6px;right:6px;background:transparent;border:none;color:var(--primary);cursor:pointer;font-size:.85rem;}
   .done-row{display:flex;align-items:center;gap:8px;font-size:.85rem;}
   .pend-row td{background:rgba(255,171,64,.04);}
   small.hint{color:var(--muted);font-size:.75rem;}
+  span.hint, div.hint{color:var(--muted);font-size:.8rem;}
   input[type=checkbox]{width:auto;transform:scale(1.2);}
   tr.clickable{cursor:pointer;}
   tr.clickable:hover td{background:rgba(0,210,255,.06);}
-  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;justify-content:center;align-items:center;z-index:1000;padding:16px;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(18,30,22,.55);display:none;justify-content:center;align-items:center;z-index:1000;padding:16px;}
   .modal-overlay.show{display:flex;}
   .modal-content{background:var(--card);padding:26px;border-radius:15px;width:100%;max-width:640px;max-height:88vh;overflow-y:auto;border:1px solid var(--primary);}
   .modal-content h2{color:var(--primary);margin-top:0;font-size:1.15rem;text-align:center;}
+  /* v2: login, barra de estado, puente */
+  #loginDig{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:2000;padding:16px;}
+  #loginDig.oculto{display:none;}
+  .login-box{background:var(--card);border:1px solid rgba(0,210,255,.3);border-radius:16px;padding:26px;width:100%;max-width:380px;}
+  .login-box h2{color:var(--primary);font-weight:300;text-align:center;margin:0 0 4px;}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card);
+    border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:8px 14px;margin-bottom:14px;font-size:.8rem;}
+  .pill-puente{padding:4px 10px;border-radius:20px;font-weight:bold;font-size:.75rem;}
+  .pp-ok{background:rgba(16,185,129,.15);color:#6ee7b7;}
+  .pp-warn{background:rgba(245,158,11,.15);color:#fcd34d;}
+  .pp-off{background:rgba(148,163,189,.15);color:#5E6E63;}
+  .hab-row input{max-width:none;padding:7px;}
+  /* ---- Celular ---- */
+  @media (max-width:700px){
+    .card{padding:14px;}
+    h1{font-size:1.5rem;}
+    .tabs{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;-webkit-overflow-scrolling:touch;
+          scrollbar-width:none;padding-bottom:4px;margin-left:-4px;margin-right:-4px;}
+    .tabs::-webkit-scrollbar{display:none;}
+    .tab-btn{flex:none;padding:9px 14px;}
+    /* las tablas se deslizan de lado en vez de cortarse */
+    table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+    th,td{white-space:nowrap;}
+    .topbar{padding:8px 10px;}
+    #digCorreo{display:inline-block;max-width:150px;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;white-space:nowrap;}
+    #tab-habilitados input, #tab-habilitados select{max-width:none !important;width:100%;}
+    #tab-habilitados > div:first-of-type > div{flex:1 1 45%;}
+    #tab-cues input{max-width:none !important;width:100%;}
+    #tab-personal input, #tab-personal select{max-width:none !important;width:100%;}
+    #tab-personal > div:first-of-type > div{flex:1 1 45%;}
+    #tab-cues > div:first-of-type > div{flex:1 1 45%;}
+  }
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tema.css?v=5">
 </head>
 <body>
+<!-- LOGIN DEL DIGITADOR (Supabase Auth) -->
+<div id="loginDig">
+  <div class="login-box">
+    <h2>Panel del Digitador</h2>
+    <div class="subtitle" style="margin-bottom:16px">AretesApp · acceso restringido</div>
+    <div class="field"><label>Correo</label><input id="digEmail" type="email" autocomplete="username"></div>
+    <div class="field"><label>Contraseña</label><input id="digPass" type="password" autocomplete="current-password"
+      onkeydown="if(event.key==='Enter')entrarDigitador()"></div>
+    <button class="btn btn-block" id="btnDig" onclick="entrarDigitador()">ENTRAR</button>
+    <div id="digMsg"></div>
+  </div>
+</div>
+
 <div class="container">
+  <div class="topbar">
+    <span id="pillPuente" class="pill-puente pp-off">○ Puente: verificando…</span>
+    <span><span id="digCorreo" class="hint"></span> &nbsp;<button class="btn btn-ghost btn-sm" onclick="salirDigitador()">Salir</button></span>
+  </div>
   <h1>Panel del Digitador</h1>
   <div class="subtitle">Operadora – Alcaldía El Tortuguero · Licencia IPSA</div>
 
@@ -76,6 +129,10 @@
     <button class="tab-btn" onclick="switchTab('entrega',this)">Entrega IPSA</button>
     <button class="tab-btn" onclick="switchTab('historial',this)">Historial</button>
     <button class="tab-btn" onclick="switchTab('cues',this)">CUEs</button>
+    <button class="tab-btn" onclick="switchTab('movimientos',this)">Movimientos</button>
+    <button class="tab-btn" onclick="switchTab('habilitados',this)">Habilitados</button>
+    <button class="tab-btn" onclick="switchTab('personal',this)">Personal</button>
+    <button class="tab-btn" onclick="switchTab('puente',this)">Puente SNITB</button>
     <button class="tab-btn" onclick="switchTab('config',this)">Configuración</button>
   </div>
 
@@ -128,7 +185,7 @@
     <p style="text-align:center;color:var(--muted);font-size:.82rem;margin-top:0">
       Datos de establecimientos tomados del <b>SNITB</b>. Los habilitados los consultan en su portal
       (capacidad = área bovina × factor de carga; se les suma además los aretes entregados después de la fecha del dato).<br>
-      Puedes registrarlos a mano aquí, o sincronizarlos automáticamente con el <b>bot puente</b> (ver INSTALACION.md).
+      Puedes registrarlos a mano aquí, o se actualizan solos cuando un habilitado consulta un CUE en vivo (extensión <b>Puente SNITB</b>).
     </p>
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:flex-end;margin-bottom:6px">
       <div><label>CUE</label><input id="cueNuevo" placeholder="9316044757" style="max-width:150px"></div>
@@ -156,10 +213,74 @@
     <div class="field"><label>Umbral de "casi lleno" (% de ocupación)</label><input id="cfgUmbral" type="number" placeholder="85"></div>
     <button class="btn btn-block" onclick="guardarConfig()">GUARDAR CONFIGURACIÓN</button>
     <div id="cfgMsg"></div>
+
+  </div>
+
+  <!-- HABILITADOS -->
+  <div id="tab-habilitados" class="card">
+    <p style="text-align:center;color:var(--muted);font-size:.82rem;margin-top:0">
+      Los PIN se guardan cifrados: no se pueden ver, solo cambiar. Deja el PIN vacío para no cambiarlo.
+      Tras 5 intentos fallidos el habilitado queda bloqueado 10 minutos (guardarlo aquí lo desbloquea).</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:flex-end">
+      <div><label>Número</label><input id="hNum" style="max-width:100px"></div>
+      <div><label>Nombre</label><input id="hNom" style="max-width:240px"></div>
+      <div><label>Cédula</label><input id="hCed" style="max-width:160px"></div>
+      <div><label>PIN nuevo</label><input id="hPin" type="password" inputmode="numeric" autocomplete="new-password" name="pin-habilitado-nuevo" readonly onfocus="this.removeAttribute('readonly')" style="max-width:100px"></div>
+      <div><label>Estado</label><select id="hEst" style="max-width:130px"><option>ACTIVO</option><option>INACTIVO</option><option>BLOQUEADO</option><option>PENDIENTE</option></select></div>
+      <button class="btn btn-sm" style="height:40px" onclick="guardarHab()">Guardar</button>
+    </div>
+    <div id="habMsg"></div>
+    <table><thead><tr><th>Número</th><th>Nombre</th><th>Cédula</th><th>Estado</th><th></th></tr></thead>
+      <tbody id="tablaHab"><tr><td colspan="5" style="text-align:center">Cargando…</td></tr></tbody></table>
+  </div>
+
+  <!-- MOVIMIENTOS -->
+  <div id="tab-movimientos" class="card">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center;margin-bottom:12px">
+      <select id="movFiltro" onchange="cargarMovs()" style="max-width:220px">
+        <option value="">Todos</option><option value="PENDIENTE">En cola</option><option value="REGISTRANDO">Registrando</option>
+        <option value="REGISTRADO">Registrados</option><option value="ERROR">Con error</option><option value="ANULADO">Anulados</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="cargarMovs()">🔄 Actualizar</button>
+    </div>
+    <div id="autoBox" class="chip" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <span>🤖 <b>Registro automático en el SNITB</b><br><span class="hint">El puente registra cada carta de venta y sube su foto, sin que hagas nada.</span></span>
+      <label style="display:flex;align-items:center;gap:8px;margin:0;cursor:pointer;color:var(--text)">
+        <input type="checkbox" id="autoChk" onchange="cambiarAuto(this.checked)" style="width:22px;height:22px"> <span id="autoTxt">…</span></label>
+    </div>
+    <p style="text-align:center;color:var(--muted);font-size:.8rem;margin-top:0">Cartas de venta enviadas por el personal de movimientos desde su portal.</p>
+    <div id="listaMovs"></div>
+  </div>
+
+  <!-- PERSONAL DE MOVIMIENTOS -->
+  <div id="tab-personal" class="card">
+    <p style="text-align:center;color:var(--muted);font-size:.82rem;margin-top:0">
+      Digitadores de movimientos: entran en <b>movimiento.html</b> con su usuario y contraseña. Deja la contraseña vacía para no cambiarla.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:flex-end">
+      <div><label>Usuario</label><input id="pUsr" placeholder="maria.lopez" autocapitalize="none" style="max-width:150px"></div>
+      <div><label>Nombre completo</label><input id="pNom" style="max-width:240px"></div>
+      <div><label>Contraseña nueva</label><input id="pPass" type="password" autocomplete="new-password" name="clave-personal-nueva" readonly onfocus="this.removeAttribute('readonly')" style="max-width:150px" placeholder="mín. 6"></div>
+      <div><label>Estado</label><select id="pEst" style="max-width:130px"><option>ACTIVO</option><option>INACTIVO</option></select></div>
+      <button class="btn btn-sm" style="height:40px" onclick="guardarPersonal()">Guardar</button>
+    </div>
+    <div id="perMsg"></div>
+    <table><thead><tr><th>Usuario</th><th>Nombre</th><th>Estado</th><th>Movimientos</th><th></th></tr></thead>
+      <tbody id="tablaPer"><tr><td colspan="5" style="text-align:center">Cargando…</td></tr></tbody></table>
+  </div>
+
+  <!-- PUENTE -->
+  <div id="tab-puente" class="card">
+    <div id="puenteDetalle" style="text-align:center;margin-bottom:14px"></div>
+    <p style="text-align:center;color:var(--muted);font-size:.8rem;margin-top:0">Últimas consultas que hicieron los habilitados al SNITB a través del puente.</p>
+    <button class="btn btn-ghost btn-sm" onclick="cargarPuente()" style="margin-bottom:10px">🔄 Actualizar</button>
+    <table><thead><tr><th>Hora</th><th>Tipo</th><th>Dato</th><th>Habilitado</th><th>Estado</th><th>Tiempo</th></tr></thead>
+      <tbody id="tablaBitacora"></tbody></table>
   </div>
 </div>
 
-<script src="backend.js?v=9"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js"></script>
+<script src="config.js?v=10"></script>
+<script src="backend.js?v=13"></script>
 <script>
   /* ---- Bloqueo de zoom (viewport + touch-action lo hacen; gesture* refuerza iOS) ---- */
   document.addEventListener('gesturestart', e=>e.preventDefault());
@@ -175,6 +296,10 @@
     if(tab==='historial') cargarHistorial();
     if(tab==='cues') cargarCues();
     if(tab==='config') cargarConfig();
+    if(tab==='habilitados') cargarHabs();
+    if(tab==='movimientos') cargarMovs();
+    if(tab==='personal') cargarPersonal();
+    if(tab==='puente') cargarPuente();
   }
 
   const TIPO_DOC = "Recibo - Operadoras";
@@ -428,8 +553,149 @@
     } catch(e){ msg.innerHTML='<div class="msg msg-err">Error de conexión al guardar.</div>'; }
   }
 
+  /* ---------- v2: SESIÓN DEL DIGITADOR ---------- */
+  const esc = v => String(v==null?'':v).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  async function entrarDigitador(){
+    const msg=document.getElementById('digMsg'), btn=document.getElementById('btnDig');
+    btn.disabled=true; msg.innerHTML='<div class="msg" style="color:var(--muted)">Entrando…</div>';
+    try{
+      const r=await Backend.loginDigitador(document.getElementById('digEmail').value, document.getElementById('digPass').value);
+      if(r.status!=='ok'){ msg.innerHTML='<div class="msg msg-err">'+esc(r.message)+'</div>'; btn.disabled=false; return; }
+      msg.innerHTML=''; iniciarPanel();
+    }catch(e){ msg.innerHTML='<div class="msg msg-err">Error de conexión: '+esc(e.message)+'</div>'; }
+    btn.disabled=false;
+  }
+  async function salirDigitador(){ if(!confirm('¿Cerrar sesión?')) return; await Backend.logoutDigitador(); location.reload(); }
+  window.addEventListener('aretes:no-autorizado', ()=>document.getElementById('loginDig').classList.remove('oculto'));
+
+  let puenteTimer=null;
+  async function iniciarPanel(){
+    document.getElementById('loginDig').classList.add('oculto');
+    try{ document.getElementById('digCorreo').textContent = await Backend.correoDigitador(); }catch(e){}
+    cargarPendientes(); pintarPuente();
+    if(!puenteTimer) puenteTimer=setInterval(pintarPuente, 20000);
+  }
+
+  /* ---------- v2: ESTADO DEL PUENTE ---------- */
+  function hace(ms){ if(!ms) return 'nunca'; const s=Math.round((Date.now()-ms)/1000);
+    return s<60? 'hace '+s+' s' : s<3600? 'hace '+Math.round(s/60)+' min' : new Date(ms).toLocaleString(); }
+  async function pintarPuente(){
+    let p; try{ p=await Backend.estadoPuente(); }catch(e){ return; }
+    const el=document.getElementById('pillPuente');
+    if(p.online){ el.className='pill-puente pp-ok'; el.textContent='● Puente en línea'; }
+    else if(p.conectado){ el.className='pill-puente pp-warn'; el.textContent='◐ Puente sin sesión SNITB — inicia sesión en el SNITB'; }
+    else { el.className='pill-puente pp-off'; el.textContent='○ Puente apagado (último latido: '+hace(p.lastSeen)+')'; }
+    const d=document.getElementById('puenteDetalle');
+    if(d) d.innerHTML='<span class="chip">Estado: <b>'+(p.online?'EN LÍNEA':p.conectado?'SIN SESIÓN SNITB':'APAGADO')+
+      '</b> · sesión SNITB: <b>'+esc(p.sesion)+'</b> · último latido: <b>'+hace(p.lastSeen)+'</b>'+(p.version?' · extensión v'+esc(p.version):'')+'</span>';
+  }
+  async function cargarPuente(){
+    pintarPuente();
+    const tb=document.getElementById('tablaBitacora'); tb.innerHTML='<tr><td colspan="6" style="text-align:center">Cargando…</td></tr>';
+    let l=[]; try{ l=await Backend.bitacora(60); }catch(e){ tb.innerHTML='<tr><td colspan="6">Error: '+esc(e.message)+'</td></tr>'; return; }
+    if(!l.length){ tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted)">Sin consultas todavía.</td></tr>'; return; }
+    const col={LISTO:'var(--success)',ERROR:'var(--danger)',EXPIRADO:'var(--muted)',PENDIENTE:'var(--warn)',EN_PROCESO:'var(--primary)'};
+    tb.innerHTML=l.map(x=>`<tr><td>${new Date(x.creado).toLocaleString()}</td><td>${esc(x.tipo)}</td><td class="mono">${esc(x.termino)}</td>
+      <td>${esc(x.hab)}</td><td style="color:${col[x.estado]||'#fff'}">${esc(x.estado)}${x.error?'<br><small class="hint">'+esc(x.error)+'</small>':''}</td>
+      <td>${x.segundos!=null?x.segundos+' s':'—'}</td></tr>`).join('');
+  }
+
+  /* ---------- v2: HABILITADOS ---------- */
+  let cacheHabs=[];
+  async function cargarHabs(){
+    const tb=document.getElementById('tablaHab');
+    try{ cacheHabs=await Backend.getHabilitados(); }catch(e){ tb.innerHTML='<tr><td colspan="5">Error: '+esc(e.message)+'</td></tr>'; return; }
+    tb.innerHTML = cacheHabs.length ? cacheHabs.map((h,i)=>`<tr><td class="mono">${esc(h.numero)}</td><td>${esc(h.nombre)}</td><td>${esc(h.cedula)}</td>
+      <td>${esc(h.estado)}${h.bloqueado?' <span class="badge" style="background:rgba(239,68,68,.15);color:var(--danger)">bloqueado 10 min</span>':''}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="editarHab(${i})">Editar</button></td></tr>`).join('')
+      : '<tr><td colspan="5" style="text-align:center;color:var(--muted)">No hay habilitados. Agrégalos arriba.</td></tr>';
+  }
+  function editarHab(i){ const h=cacheHabs[i]; if(!h) return;
+    hNum.value=h.numero; hNom.value=h.nombre; hCed.value=h.cedula||''; hPin.value=''; hEst.value=h.estado||'ACTIVO'; hNom.focus(); }
+  async function guardarHab(){
+    const msg=document.getElementById('habMsg');
+    if(hPin.value.trim() && cacheHabs.some(h=>String(h.numero)===hNum.value.trim())
+       && !confirm('Vas a CAMBIAR el PIN del habilitado '+hNum.value.trim()+'.\nSe le cerrará la sesión y tendrá que entrar con el PIN nuevo.\n\n¿Continuar?')) return;
+    try{
+      const r=await Backend.guardarHabilitado({numero:hNum.value.trim(), nombre:hNom.value.trim(), cedula:hCed.value.trim(), pin:hPin.value.trim(), estado:hEst.value});
+      msg.innerHTML = r.status==='success' ? '<div class="msg msg-ok">✅ Habilitado guardado.</div>' : '<div class="msg msg-err">'+esc(r.message)+'</div>';
+      if(r.status==='success'){ hNum.value=hNom.value=hCed.value=hPin.value=''; hEst.value='ACTIVO'; cargarHabs(); }
+    }catch(e){ msg.innerHTML='<div class="msg msg-err">'+esc(e.message)+'</div>'; }
+  }
+
+  /* ---------- v2: PERSONAL DE MOVIMIENTOS ---------- */
+  let cachePer=[];
+  async function cargarPersonal(){
+    const tb=document.getElementById('tablaPer');
+    try{ cachePer=await Backend.getPersonal(); }catch(e){ tb.innerHTML='<tr><td colspan="5">Error: '+esc(e.message)+'</td></tr>'; return; }
+    tb.innerHTML = cachePer.length ? cachePer.map((p,i)=>`<tr><td class="mono">${esc(p.usuario)}</td><td>${esc(p.nombre)}</td>
+      <td>${esc(p.estado)}${p.bloqueado?' <span class="badge" style="background:rgba(239,68,68,.15);color:var(--danger)">bloqueado 10 min</span>':''}</td>
+      <td>${p.movimientos}</td><td><button class="btn btn-ghost btn-sm" onclick="editarPer(${i})">Editar</button></td></tr>`).join('')
+      : '<tr><td colspan="5" style="text-align:center;color:var(--muted)">Todavía no hay personal. Agrégalo arriba.</td></tr>';
+  }
+  function editarPer(i){ const p=cachePer[i]; if(!p) return; pUsr.value=p.usuario; pNom.value=p.nombre; pPass.value=''; pEst.value=p.estado; pNom.focus(); }
+  async function guardarPersonal(){
+    const msg=document.getElementById('perMsg');
+    if(pPass.value && cachePer.some(p=>p.usuario===pUsr.value.trim())
+       && !confirm('Vas a CAMBIAR la contraseña de '+pUsr.value.trim()+'.\nSe le cerrará la sesión y tendrá que entrar con la nueva.\n\n¿Continuar?')) return;
+    try{
+      const r=await Backend.guardarPersonal({usuario:pUsr.value.trim(), nombre:pNom.value.trim(), pass:pPass.value, estado:pEst.value});
+      msg.innerHTML = r.status==='success' ? '<div class="msg msg-ok">✅ Guardado. Portal: <b>movimiento.html</b></div>' : '<div class="msg msg-err">'+esc(r.message)+'</div>';
+      if(r.status==='success'){ pUsr.value=pNom.value=pPass.value=''; pEst.value='ACTIVO'; cargarPersonal(); }
+    }catch(e){ msg.innerHTML='<div class="msg msg-err">'+esc(e.message)+'</div>'; }
+  }
+
+  /* ---------- v2: MOVIMIENTOS ---------- */
+  const MOV_EST = { PENDIENTE:['En cola','var(--warn)'], REGISTRANDO:['Registrando…','var(--primary)'], REGISTRADO:['Registrado','var(--success)'], ERROR:['Con error','var(--danger)'], ANULADO:['Anulado','var(--muted)'] };
+  async function pintarAuto(){ try{ const c=await Backend.getConfig(); autoChk.checked=!!c.registroAuto; autoTxt.textContent=c.registroAuto?'Activado':'Apagado'; }catch(e){} }
+  async function cambiarAuto(on){
+    if(!on && !confirm('¿Apagar el registro automático? Los movimientos se quedarán «En cola» hasta que lo actives o los registres a mano.')){ autoChk.checked=true; return; }
+    try{ await Backend.registroAuto(on); }catch(e){ alert(e.message); } pintarAuto();
+  }
+  let cacheMovs=[];
+  async function cargarMovs(){
+    const cont=document.getElementById('listaMovs'); cont.innerHTML='<p style="text-align:center;color:var(--muted)">Cargando…</p>'; pintarAuto();
+    try{ cacheMovs=await Backend.getMovimientos(document.getElementById('movFiltro').value); }
+    catch(e){ cont.innerHTML='<div class="msg msg-err">'+esc(e.message)+'</div>'; return; }
+    if(!cacheMovs.length){ cont.innerHTML='<p style="text-align:center;color:var(--muted)">No hay movimientos en esta lista.</p>'; return; }
+    cont.innerHTML = cacheMovs.map((m,i)=>{ const e=MOV_EST[m.estado]||[m.estado,'#fff']; return `<div class="exp-block">
+      <div class="exp-head"><div><b>CV ${esc(m.nodoc)}</b>${m.repetida?' <span class="badge" style="color:var(--warn);border:1px solid var(--warn)">carta repetida · aretes que faltaron</span>':''} <span class="hint">#${m.id} · ${esc(m.fecha)} · por ${esc(m.usuarioNombre||m.usuario)}</span></div>
+        <span class="badge" style="color:${e[1]};border:1px solid ${e[1]}">${e[0]}</span></div>
+      <div class="ipsa-grid">
+        <div><span class="hint">Origen</span><br><b>${esc(m.nombreOrigen)}</b><br><span class="mono">${esc(m.cupaOrigen)}</span><br>${esc(m.fincaOrigen)} · <span class="mono">${esc(m.cueOrigen)}</span></div>
+        <div><span class="hint">Destino</span><br><b>${esc(m.nombreDestino)}</b><br><span class="mono">${esc(m.cupaDestino)}</span><br>${esc(m.fincaDestino)} · <span class="mono">${esc(m.cueDestino)}</span></div>
+      </div>
+      <div class="hint" style="margin:6px 0">Aretes (${m.aretes.length}): <span class="mono">${m.aretes.map(a=>esc(a.codigo)).join(', ')}</span>
+        <button class="btn btn-ghost btn-sm" style="padding:3px 8px;margin-left:6px" onclick="copiarAretes(${i})">Copiar</button></div>
+      ${m.error?'<div class="msg '+(m.estado==='REGISTRADO'?'msg-ok':'msg-err')+'">'+esc(m.error)+'</div>':''}${m.snitbRef?'<div class="hint">SNITB: '+esc(m.snitbRef)+(m.snitbId?' · registro #'+esc(m.snitbId):'')+(m.intentos?' · intentos: '+m.intentos:'')+'</div>':''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn btn-ghost btn-sm" onclick="verFotoMov(${i})">📷 Ver carta</button>
+        ${m.estado!=='REGISTRADO'&&m.estado!=='REGISTRANDO'?`<button class="btn btn-ghost btn-sm" onclick="estadoMov(${i},'REGISTRADO')">✓ Marcar registrado a mano</button>`:''}
+        ${m.estado==='ERROR'?`<button class="btn btn-sm" onclick="estadoMov(${i},'PENDIENTE')">⟳ Reintentar</button>`:''}
+        ${m.estado==='PENDIENTE'||m.estado==='ERROR'?`<button class="btn btn-ghost btn-sm" style="border-color:var(--danger);color:var(--danger)" onclick="estadoMov(${i},'ERROR')">✗ Devolver con error</button>`:''}
+        ${m.estado!=='ANULADO'?`<button class="btn btn-ghost btn-sm" style="border-color:var(--muted);color:var(--muted)" onclick="estadoMov(${i},'ANULADO')">Anular</button>`:''}
+      </div></div>`; }).join('');
+  }
+  function copiarAretes(i){ const t=cacheMovs[i].aretes.map(a=>a.codigo).join('\n');
+    (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toastMov('Aretes copiados'),()=>prompt('Copia los aretes:',t)); }
+  function toastMov(t){ const m=document.getElementById('listaMovs'); const d=document.createElement('div'); d.className='msg msg-ok'; d.textContent=t; m.prepend(d); setTimeout(()=>d.remove(),1800); }
+  async function verFotoMov(i){
+    const w=window.open('','_blank');
+    try{ const u=await Backend.urlFoto(cacheMovs[i].fotoPath); if(w) w.location=u; else location.href=u; }
+    catch(e){ if(w) w.close(); alert('No se pudo abrir la foto: '+e.message); }
+  }
+  async function estadoMov(i, estado){
+    const m=cacheMovs[i]; let ref='', err='';
+    if(estado==='REGISTRADO'){ ref=prompt('Referencia en el SNITB (opcional, ej. CV '+m.nodoc+'):','CV '+m.nodoc); if(ref===null) return; }
+    else if(estado==='ERROR'){ err=prompt('¿Qué debe corregir el digitador de movimientos?'); if(!err) return; }
+    else if(estado==='PENDIENTE'){ if(!confirm('¿Volver a intentar registrar CV '+m.nodoc+' en el SNITB? Antes revisa que no esté ya registrado.')) return; }
+    else if(!confirm('¿Anular el movimiento CV '+m.nodoc+'?')) return;
+    try{ const r=await Backend.cambiarEstadoMov(m.id, estado, ref, err); if(r.status!=='success') alert(r.message); cargarMovs(); }
+    catch(e){ alert(e.message); }
+  }
+
   /* init */
-  cargarPendientes();
+  (async ()=>{ if(await Backend.sesionDigitador()) iniciarPanel(); else document.getElementById('digEmail').focus(); })();
 </script>
 </body>
 </html>

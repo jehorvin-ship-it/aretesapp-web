@@ -1,313 +1,222 @@
 /* =====================================================================
-   AretesApp - Cliente de datos (backend.js)
+   AretesApp v2 - Cliente de datos (backend.js) — Supabase
    ---------------------------------------------------------------------
-   Una sola interfaz, dos modos:
+   Misma interfaz "Backend.*" que la versión con Google Sheets, así que
+   habilitado.html y digitador.html casi no cambian.
 
-     • REMOTO  : si defines SCRIPT_URL abajo, habla con el Google Apps
-                 Script (Google Sheets como base de datos real).
-     • LOCAL   : si SCRIPT_URL queda vacío, usa localStorage del
-                 navegador (útil para desarrollar sin conexión).
+   Requiere, ANTES de este archivo:
+     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+     <script src="config.js"></script>
 
-   TODAS las funciones devuelven Promesas (async), así que en los HTML
-   se llaman con  await Backend.loQueSea(...).
+   • Habilitado: entra con número + PIN → recibe un token de sesión.
+   • Digitador : entra con correo + contraseña (Supabase Auth).
    ===================================================================== */
-
 (function (global) {
   "use strict";
 
-  /* >>> PEGA AQUÍ la URL /exec de tu implementación del Apps Script <<<
-     Déjala vacía ("") para trabajar en modo LOCAL con localStorage.   */
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyLqMOwccxqgW49geXTKJdi9Lp6teRShV2nduu8kgDV4_Sg_BmL4V-pwDt-tLlOhVgUVw/exec";
-
-  const MODO_REMOTO = !!SCRIPT_URL;
-
-  // =================================================================
-  //  MODO REMOTO  (Google Apps Script + Sheets)
-  // =================================================================
-  async function get(action, params) {
-    const url = new URL(SCRIPT_URL);
-    url.searchParams.set("action", action);
-    if (params) Object.keys(params).forEach(k => url.searchParams.set(k, params[k]));
-    const resp = await fetch(url.toString());
-    return await resp.json();
+  const URL_ = global.SUPABASE_URL, KEY = global.SUPABASE_ANON_KEY;
+  if (!URL_ || !KEY || !global.supabase) {
+    console.error("[AretesApp] Falta configurar config.js (SUPABASE_URL / SUPABASE_ANON_KEY) o la librería de Supabase.");
   }
-  // POST con body de texto plano => petición "simple" => sin preflight CORS
-  async function post(payload) {
-    const resp = await fetch(SCRIPT_URL, {
-      method: "POST",
-      body: JSON.stringify(payload)
+  const sb = (URL_ && KEY && global.supabase)
+    ? global.supabase.createClient(URL_, KEY, { auth: { persistSession: true, autoRefreshToken: true, storageKey: "aretesapp-auth" } })
+    : null;
+
+  /* ---------------- sesión del habilitado ---------------- */
+  const TOK_KEY = "aretesapp_hab_token";
+  let tokenHab = null;
+  const HAB_INFO = "aretesapp_hab_info";
+  try { tokenHab = global.localStorage.getItem(TOK_KEY) || global.sessionStorage.getItem(TOK_KEY); } catch (e) {}
+  function setToken(t) {
+    tokenHab = t;
+    try {
+      if (t) localStorage.setItem(TOK_KEY, t);
+      else { localStorage.removeItem(TOK_KEY); localStorage.removeItem(HAB_INFO); }
+      sessionStorage.removeItem(TOK_KEY);
+    } catch (e) {}
+  }
+
+  const MOV_KEY = "aretesapp_mov_token";
+  let tokenMov = null;
+  try { tokenMov = global.localStorage.getItem(MOV_KEY); } catch (e) {}
+  function setTokenMov(t) { tokenMov = t; try { t ? localStorage.setItem(MOV_KEY, t) : localStorage.removeItem(MOV_KEY); } catch (e) {} }
+  const tokM = () => { if (!tokenMov) throw new Error("Tu sesión venció. Vuelve a entrar."); return tokenMov; };
+
+  /* ---------------- llamada RPC con manejo de errores ---------------- */
+  // Funciones que solo leen datos: se pueden repetir sin riesgo si la red falla un instante.
+  const SOLO_LECTURA = /^(hab_(expedientes|resultado|buscar_productor|disponible|config|cues|mis)|mov_(resultado|mis)|dig_(yo|pendientes|confirmados|cues|habilitados|bitacora|personal|movimientos)|get_config|estado_puente|puente_)/;
+  const esErrorDeRed = m => /Failed to fetch|NetworkError|Load failed|network|ERR_|fetch/i.test(m);
+  const esErrorDeAuth = (e, m) => e.code === "42501" || e.code === "PGRST301" || e.code === "PGRST303" || /JWT|jwt expired|not authorized|Acceso solo para el digitador/i.test(m);
+  const dormir = ms => new Promise(r => setTimeout(r, ms));
+
+  async function rpc(fn, args, _intento) {
+    if (!sb) throw new Error("Supabase no está configurado (config.js)");
+    const intento = _intento || 0;
+    let data, error;
+    try { ({ data, error } = await sb.rpc(fn, args || {})); }
+    catch (e) { error = { message: String(e && e.message || e) }; }
+    if (error) {
+      const msg = String(error.message || error);
+      if (msg.indexOf("SESION_VENCIDA") >= 0) {
+        if (fn.indexOf("mov_") === 0) setTokenMov(null); else setToken(null);
+        global.dispatchEvent(new CustomEvent("aretes:sesion-vencida"));
+        throw new Error("Tu sesión venció. Vuelve a entrar.");
+      }
+      // Digitador: el permiso de Supabase dura 1 hora y se renueva solo. Si la pestaña estuvo
+      // dormida, la primera llamada puede salir con el permiso viejo: se renueva y se repite.
+      if (intento === 0 && esErrorDeAuth(error, msg)) {
+        try {
+          const { data: ses } = await sb.auth.getSession();
+          if (ses && ses.session) { await sb.auth.refreshSession(); return rpc(fn, args, 1); }
+        } catch (e) {}
+      }
+      // Corte de red de un instante (celular que despierta, cambio de wifi/datos)
+      if (intento < 2 && esErrorDeRed(msg) && SOLO_LECTURA.test(fn)) { await dormir(1200 * (intento + 1)); return rpc(fn, args, intento + 1); }
+      if (esErrorDeAuth(error, msg) && fn.indexOf("dig_") === 0) global.dispatchEvent(new CustomEvent("aretes:no-autorizado"));
+      if (esErrorDeRed(msg)) throw new Error("Sin conexión a internet por un momento. Intenta de nuevo.");
+      throw new Error(msg);
+    }
+    return data;
+  }
+  // Al volver a la app (celular desbloqueado, otra pestaña), renueva el permiso del digitador de una vez
+  try {
+    global.document.addEventListener("visibilitychange", () => {
+      if (global.document.visibilityState === "visible" && sb) { try { sb.auth.startAutoRefresh(); sb.auth.getSession(); } catch (e) {} }
+      else if (sb) { try { sb.auth.stopAutoRefresh(); } catch (e) {} }
     });
-    return await resp.json();
+  } catch (e) {}
+  const tok = () => { if (!tokenHab) throw new Error("Tu sesión venció. Vuelve a entrar."); return tokenHab; };
+
+  /* ---------------- aviso en tiempo real de resultados ---------------- */
+  // El bot avisa por "broadcast" cuando termina un trabajo; además se
+  // pregunta cada 1.5 s como respaldo. Así responde al instante.
+  const esperando = new Map();
+  let canalPuente = null;
+  function asegurarCanal() {
+    if (canalPuente || !sb) return;
+    canalPuente = sb.channel("puente-resultados")
+      .on("broadcast", { event: "listo" }, (msg) => {
+        const id = msg && msg.payload && msg.payload.jobId;
+        const fn = id && esperando.get(id);
+        if (fn) fn();
+      })
+      .subscribe();
   }
 
-  const Remote = {
-    getConfig:                 ()                       => get("config"),
-    saveConfig:                (d)                      => post({ tipo: "saveConfig", precio: d.precio, cuiaSiguiente: d.cuiaSiguiente, cuiaFinLote: d.cuiaFinLote }),
-    disponibleLote:            async ()                 => (await get("config")).disponible,
-    getHabilitados:            ()                       => get("habilitados"),
-    login:                     (numero, pin)            => get("login", { numero, pin }),
-    buscarProductor:           (cupa)                   => get("buscarProductor", { cupa }),
-    crearExpediente:           (datos)                  => post({ tipo: "crearExpediente", datos }),
-    getExpedientesDeHabilitado:(numero)                 => get("expedientesHabilitado", { numero }),
-    getPendientes:             ()                       => get("pendientes"),
-    aprobarExpediente:         (id, recibo, controlPago, recibos)=> post({ tipo: "aprobar", id, recibo, controlPago, recibos }),
-    actualizarExpediente:      (id, datos)              => post({ tipo: "actualizarExpediente", id, datos }),
-    getConfirmados:            ()                       => get("confirmados"),
-    marcarProductorEntregado:  (expedienteId, indice, entregado) => post({ tipo: "marcarEntregado", expedienteId, indice, entregado }),
-    estadoCue:                 (cue)                    => get("estadoCue", { cue }),
-    getCues:                   ()                       => get("cues"),
-    guardarCue:                (d)                      => post({ tipo: "guardarCue", cue: d.cue, nombre: d.nombre, areaBovino: d.areaBovino, bovinos: d.bovinos, fechaDato: d.fechaDato }),
-    solicitarCue:              (cue, hab)               => post({ tipo: "solicitarCue", cue, habilitadoNumero: hab }),
-    solicitarCupa:             (cupa, hab)              => post({ tipo: "solicitarCupa", cupa, habilitadoNumero: hab }),
-    estadoPuente:              ()                       => get("estadoPuente"),
-    resultadoCue:              (jobId)                  => get("resultadoCue", { jobId }),
-    trabajosPendientes:        ()                       => get("trabajosPendientes"),
-    entregarResultadoCue:      (jobId, datos)           => post({ tipo: "entregarResultadoCue", jobId, datos })
-  };
-
-  // =================================================================
-  //  MODO LOCAL  (localStorage) — misma interfaz, resuelta con Promesas
-  // =================================================================
-  const DB_KEY = "aretesapp_db_v1";
-  const _colaLocal = {}; // simula la cola del relay en modo local
-
-  function datosSemilla() {
-    return {
-      config: { precio: 60, cuiaSiguiente: 15972996, cuiaFinLote: 15978995 },
-      habilitados: [
-        { numero: "1537", nombre: "ALEXANDER GABRIEL DIAZ ARAGON", cedula: "6191909970000A", pin: "1234", estado: "ACTIVO" },
-        { numero: "1601", nombre: "JUAN PEREZ LOPEZ", cedula: "0011203850000B", pin: "1234", estado: "ACTIVO" }
-      ],
-      productores: [
-        { cupa: "6191909970000N", nombre: "ALEXANDER GABRIEL DIAZ ARAGON", cue: "558", habilitadoNumero: "1537" },
-        { cupa: "6191909970001M", nombre: "LENINS ANTONIO LAZO DIAZ", cue: "559", habilitadoNumero: "1537" }
-      ],
-      expedientes: [],
-      cues: [],
-      secuencia: 1
-    };
+  async function esperarResultado(jobId, ms, consultar) {
+    consultar = consultar || (() => rpc("hab_resultado", { p_token: tok(), p_job: jobId }));
+    asegurarCanal();
+    const limite = Date.now() + (ms || 20000);
+    let despertar = null;
+    esperando.set(jobId, () => despertar && despertar());
+    try {
+      while (Date.now() < limite) {
+        let r;
+        try { r = await consultar(); } catch (e) { r = null; }
+        if (r && r.status !== "pendiente") return r;
+        await new Promise(res => { despertar = res; setTimeout(res, 1500); });
+      }
+      return { status: "timeout" };
+    } finally { esperando.delete(jobId); }
   }
-  function cargar() {
-    let raw = null;
-    try { raw = global.localStorage.getItem(DB_KEY); } catch (e) {}
-    if (!raw) { const db = datosSemilla(); guardar(db); return db; }
-    try { return JSON.parse(raw); } catch (e) { const db = datosSemilla(); guardar(db); return db; }
-  }
-  function guardar(db) { try { global.localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch (e) {} }
-  function hoyISO() {
-    const d = new Date();
-    return ("0"+d.getDate()).slice(-2)+"/"+("0"+(d.getMonth()+1)).slice(-2)+"/"+d.getFullYear();
-  }
-  function disponible(db) { return Math.max(0, db.config.cuiaFinLote - db.config.cuiaSiguiente + 1); }
 
-  const Local = {
-    async getConfig() {
-      const c = cargar().config;
-      return { precio: c.precio, cuiaSiguiente: c.cuiaSiguiente, cuiaFinLote: c.cuiaFinLote, disponible: disponible(cargar()), factorCarga: c.factorCarga || 1.5, umbralAlerta: c.umbralAlerta || 85 };
-    },
-    async saveConfig(d) {
-      const db = cargar();
-      db.config.precio = Number(d.precio);
-      db.config.cuiaSiguiente = Number(d.cuiaSiguiente);
-      db.config.cuiaFinLote = Number(d.cuiaFinLote);
-      if (d.factorCarga !== undefined) db.config.factorCarga = Number(d.factorCarga) || 1.5;
-      if (d.umbralAlerta !== undefined) db.config.umbralAlerta = Number(d.umbralAlerta) || 85;
-      guardar(db);
-      return { status: "success" };
-    },
-    async disponibleLote() { return disponible(cargar()); },
-    async getHabilitados() { return cargar().habilitados; },
+  /* =================================================================
+     INTERFAZ PÚBLICA
+     ================================================================= */
+  const Backend = {
+    modo: "SUPABASE",
+    cliente: sb,
+
+    /* ---- generales ---- */
+    getConfig:      ()  => rpc("get_config"),
+    disponibleLote: async () => (await rpc("get_config")).disponible,
+    estadoPuente:   ()  => rpc("estado_puente"),
+
+    /* ---- habilitado ---- */
     async login(numero, pin) {
-      const h = cargar().habilitados.find(x => String(x.numero).trim() === String(numero).trim() && String(x.pin).trim() === String(pin).trim());
-      if (!h) return { status: "error", message: "Número o PIN incorrecto" };
-      const estado = String(h.estado || "").trim().toUpperCase();
-      if (["PENDIENTE","INACTIVO","BLOQUEADO"].includes(estado)) return { status: "pendiente", message: "Cuenta " + estado.toLowerCase() + ". Contacta al digitador." };
-      return { status: "ok", habilitado: h };
+      const r = await rpc("hab_login", { p_numero: String(numero || "").trim(), p_pin: String(pin || "").trim() });
+      if (r && r.status === "ok") { setToken(r.token); try { localStorage.setItem(HAB_INFO, JSON.stringify(r.habilitado || {})); } catch (e) {} }
+      return r;
     },
-    async buscarProductor(cupa) {
-      return cargar().productores.find(p => p.cupa === (cupa || "").trim().toUpperCase()) || null;
+    async logout() { const t = tokenHab; setToken(null); if (t) { try { await rpc("hab_logout", { p_token: t }); } catch (e) {} } },
+    tieneSesion: () => !!tokenHab,
+    habilitadoGuardado() { try { return tokenHab ? JSON.parse(localStorage.getItem(HAB_INFO) || "null") : null; } catch (e) { return null; } },
+    buscarProductor:            (cupa)        => rpc("hab_buscar_productor", { p_token: tok(), p_cupa: cupa }),
+    crearExpediente:            (datos)       => rpc("hab_crear_expediente", { p_token: tok(), p_datos: datos }),
+    actualizarExpediente:       (id, datos)   => rpc("hab_actualizar_expediente", { p_token: tok(), p_id: Number(id), p_datos: datos }),
+    getExpedientesDeHabilitado: ()            => rpc("hab_expedientes", { p_token: tok() }),
+    solicitarCue:               (cue)         => rpc("hab_solicitar", { p_token: tok(), p_tipo: "CUE",  p_termino: String(cue || "") }),
+    solicitarCupa:              (cupa)        => rpc("hab_solicitar", { p_token: tok(), p_tipo: "CUPA", p_termino: String(cupa || "") }),
+    resultadoCue:               (jobId)       => rpc("hab_resultado", { p_token: tok(), p_job: jobId }),
+    esperarResultado,
+
+    /* ---- digitador: sesión ---- */
+    async loginDigitador(email, password) {
+      const { error } = await sb.auth.signInWithPassword({ email: String(email).trim(), password });
+      if (error) return { status: "error", message: error.message === "Invalid login credentials" ? "Correo o contraseña incorrectos" : error.message };
+      const yo = await rpc("dig_yo");
+      if (!yo.digitador) { await sb.auth.signOut(); return { status: "error", message: "Esta cuenta no está autorizada como digitador." }; }
+      return { status: "ok" };
     },
-    async crearExpediente(datos) {
-      const db = cargar();
-      const productores = (datos.productores || []).map(p => ({
-        cupa: (p.cupa || "").trim().toUpperCase(), nombre: p.nombre || "", cue: (p.cue || "").trim(),
-        cantidad: Number(p.cantidad) || 0, cuiaInicial: null, cuiaFinal: null, entregado: false
-      }));
-      if (productores.length === 0) return { status: "error", message: "Agrega al menos un productor" };
-      if (productores.some(p => p.cantidad <= 0)) return { status: "error", message: "Toda cantidad debe ser mayor que 0" };
-      const totalAretes = productores.reduce((s, p) => s + p.cantidad, 0);
-      const exp = {
-        id: db.secuencia++, fecha: datos.fecha || hoyISO(), categoria: datos.categoria || "PRODUCTORES",
-        habilitadoNumero: datos.habilitadoNumero, habilitadoNombre: datos.habilitadoNombre,
-        estado: "PENDIENTE_PAGO", recibo: "", controlPago: false,
-        totalAretes: totalAretes, total: totalAretes * db.config.precio, productores: productores
-      };
-      db.expedientes.push(exp);
-      productores.forEach(p => {
-        if (!p.cupa) return;
-        const k = db.productores.find(x => x.cupa === p.cupa);
-        if (k) { k.nombre = p.nombre; k.cue = p.cue; k.habilitadoNumero = exp.habilitadoNumero; }
-        else db.productores.push({ cupa: p.cupa, nombre: p.nombre, cue: p.cue, habilitadoNumero: exp.habilitadoNumero });
-      });
-      guardar(db);
-      return { status: "success", id: exp.id };
+    async sesionDigitador() {
+      if (!sb) return false;
+      const { data } = await sb.auth.getSession();
+      if (!data || !data.session) return false;
+      try { return !!(await rpc("dig_yo")).digitador; } catch (e) { return false; }
     },
-    async actualizarExpediente(id, datos) {
-      const db = cargar();
-      const exp = db.expedientes.find(e => e.id === Number(id));
-      if (!exp) return { status: "error", message: "Expediente no encontrado" };
-      if (exp.estado !== "PENDIENTE_PAGO") return { status: "error", message: "Solo se puede editar un expediente Pendiente de Pago" };
-      const productores = (datos.productores || []).map(p => ({
-        cupa: (p.cupa || "").trim().toUpperCase(), nombre: p.nombre || "", cue: (p.cue || "").trim(),
-        cantidad: Number(p.cantidad) || 0, cuiaInicial: null, cuiaFinal: null, entregado: false, recibo: ""
-      }));
-      if (productores.length === 0) return { status: "error", message: "Agrega al menos un productor" };
-      if (productores.some(p => p.cantidad <= 0)) return { status: "error", message: "Toda cantidad debe ser mayor que 0" };
-      const totalAretes = productores.reduce((s, p) => s + p.cantidad, 0);
-      exp.fecha = datos.fecha || exp.fecha;
-      exp.categoria = datos.categoria || exp.categoria;
-      exp.productores = productores;
-      exp.totalAretes = totalAretes;
-      exp.total = totalAretes * db.config.precio;
-      productores.forEach(p => {
-        if (!p.cupa) return;
-        const k = db.productores.find(x => x.cupa === p.cupa);
-        if (k) { k.nombre = p.nombre; k.cue = p.cue; k.habilitadoNumero = exp.habilitadoNumero; }
-        else db.productores.push({ cupa: p.cupa, nombre: p.nombre, cue: p.cue, habilitadoNumero: exp.habilitadoNumero });
-      });
-      guardar(db);
-      return { status: "success" };
+    async logoutDigitador() { await sb.auth.signOut(); },
+    async correoDigitador() { const { data } = await sb.auth.getUser(); return data && data.user ? data.user.email : ""; },
+
+    /* ---- digitador: datos ---- */
+    saveConfig:               (d)    => rpc("dig_save_config", { p: d }),
+    getPendientes:            ()     => rpc("dig_pendientes"),
+    getConfirmados:           ()     => rpc("dig_confirmados"),
+    aprobarExpediente:        (id, recibo, controlPago, recibos) =>
+                                rpc("dig_aprobar", { p_id: Number(id), p_recibo: recibo || "", p_control_pago: !!controlPago, p_recibos: recibos && recibos.length ? recibos : null }),
+    marcarProductorEntregado: (expedienteId, indice, entregado) =>
+                                rpc("dig_marcar_entregado", { p_exp: Number(expedienteId), p_idx: Number(indice), p_val: !!entregado }),
+    getCues:                  ()     => rpc("dig_cues"),
+    guardarCue:               (d)    => rpc("dig_guardar_cue", { p: d }),
+    estadoCue:                (cue)  => rpc("dig_estado_cue", { p_cue: String(cue || "") }),
+    getHabilitados:           ()     => rpc("dig_habilitados"),
+    guardarHabilitado:        (d)    => rpc("dig_guardar_habilitado", { p: d }),
+    bitacora:                 (n)    => rpc("dig_bitacora", { p_limite: n || 50 }),
+    getPersonal:              ()     => rpc("dig_personal"),
+    guardarPersonal:          (d)    => rpc("dig_guardar_personal", { p: d }),
+    getMovimientos:           (estado, n) => rpc("dig_movimientos", { p_estado: estado || null, p_limite: n || 100 }),
+    registroAuto:             (on)   => rpc("dig_registro_auto", { p_on: !!on }),
+    cambiarEstadoMov:         (id, estado, ref, error) => rpc("dig_mov_estado", { p_id: Number(id), p_estado: estado, p_ref: ref || "", p_error: error || "" }),
+    async urlFoto(path) {
+      const { data, error } = await sb.storage.from("cartas").createSignedUrl(path, 600);
+      if (error) throw new Error(error.message);
+      return data.signedUrl;
     },
-    async getExpedientesDeHabilitado(numero) {
-      return cargar().expedientes.filter(e => String(e.habilitadoNumero) === String(numero)).sort((a, b) => b.id - a.id);
-    },
-    async getPendientes() {
-      return cargar().expedientes.filter(e => e.estado === "PENDIENTE_PAGO").sort((a, b) => a.id - b.id);
-    },
-    async aprobarExpediente(id, recibo, controlPago, recibos) {
-      const db = cargar();
-      const exp = db.expedientes.find(e => e.id === Number(id));
-      if (!exp) return { status: "error", message: "Expediente no encontrado" };
-      if (exp.estado !== "PENDIENTE_PAGO") return { status: "error", message: "El expediente ya fue procesado" };
-      const porProd = Array.isArray(recibos) && recibos.length > 0;
-      if (!recibo && !porProd) return { status: "error", message: "Falta el número de recibo (DOCUMENTO)" };
-      if (porProd) {
-        if (recibos.length !== exp.productores.length) return { status: "error", message: "Debe haber un recibo por cada productor" };
-        if (recibos.some(r => !String(r || "").trim())) return { status: "error", message: "Falta el recibo de uno o más productores" };
+
+    /* ---- personal de movimientos ---- */
+    mov: {
+      async login(usuario, pass) {
+        const r = await rpc("mov_login", { p_usuario: String(usuario || "").trim(), p_pass: String(pass || "") });
+        if (r && r.status === "ok") { setTokenMov(r.token); try { localStorage.setItem("aretesapp_mov_user", JSON.stringify(r.usuario)); } catch (e) {} }
+        return r;
+      },
+      async logout() { const t = tokenMov; setTokenMov(null); try { localStorage.removeItem("aretesapp_mov_user"); } catch (e) {}
+                       if (t) { try { await rpc("mov_logout", { p_token: t }); } catch (e) {} } },
+      usuarioGuardado() { try { return tokenMov ? JSON.parse(localStorage.getItem("aretesapp_mov_user") || "null") : null; } catch (e) { return null; } },
+      consultarAretes: (codigos) => rpc("mov_solicitar", { p_token: tokM(), p_tipo: "ARETES", p_termino: String(codigos || "") }),
+      consultarCupa:   (cupa)    => rpc("mov_solicitar", { p_token: tokM(), p_tipo: "CUPA", p_termino: String(cupa || "") }),
+      esperar: (jobId, ms) => esperarResultado(jobId, ms, () => rpc("mov_resultado", { p_token: tokM(), p_job: jobId })),
+      crear:   (datos)  => rpc("mov_crear", { p_token: tokM(), p: datos }),
+      mios:    ()       => rpc("mov_mis", { p_token: tokM() }),
+      async subirFoto(blob) {
+        const nombre = (global.crypto && crypto.randomUUID ? crypto.randomUUID()
+                       : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === "x" ? r : (r & 3 | 8)).toString(16); })) + ".jpg";
+        const { error } = await sb.storage.from("cartas").upload(nombre, blob, { contentType: "image/jpeg", upsert: false });
+        if (error) throw new Error("No se pudo subir la foto: " + error.message);
+        return nombre;
       }
-      const disp = disponible(db);
-      if (exp.totalAretes > disp) return { status: "error", message: "El lote no alcanza (disponible: " + disp + ", requiere: " + exp.totalAretes + ")" };
-      let cursor = db.config.cuiaSiguiente;
-      exp.productores.forEach((p, i) => {
-        p.cuiaInicial = cursor; p.cuiaFinal = cursor + p.cantidad - 1; cursor = p.cuiaFinal + 1;
-        p.recibo = porProd ? String(recibos[i]).trim() : String(recibo).trim();
-      });
-      db.config.cuiaSiguiente = cursor;
-      exp.recibo = porProd ? [...new Set(recibos.map(r => String(r).trim()))].join(", ") : String(recibo).trim();
-      exp.controlPago = !!controlPago; exp.estado = "PAGADO"; exp.fechaAprobacion = hoyISO();
-      guardar(db);
-      return { status: "success" };
-    },
-    async getConfirmados() {
-      return cargar().expedientes.filter(e => e.estado === "PAGADO" || e.estado === "ENTREGADO").sort((a, b) => b.id - a.id);
-    },
-    async marcarProductorEntregado(expedienteId, indice, entregado) {
-      const db = cargar();
-      const exp = db.expedientes.find(e => e.id === Number(expedienteId));
-      if (!exp || !exp.productores[indice]) return { status: "error" };
-      exp.productores[indice].entregado = !!entregado;
-      exp.estado = exp.productores.every(p => p.entregado) ? "ENTREGADO" : "PAGADO";
-      guardar(db);
-      return { status: "success" };
-    },
-    async getCues() {
-      return (cargar().cues || []).map(x => ({ ...x }));
-    },
-    async guardarCue(d) {
-      const db = cargar(); db.cues = db.cues || [];
-      const digitos = v => String(v || "").replace(/\D/g, "");
-      if (!digitos(d.cue)) return { status: "error", message: "CUE inválido" };
-      const igual = (a, b) => { a = digitos(a); b = digitos(b);
-        return a && b && (a === b || (a.length >= 6 && b.length >= 6 && (a.endsWith(b) || b.endsWith(a)))); };
-      const reg = db.cues.find(x => igual(x.cue, d.cue));
-      const fila = { cue: String(d.cue).trim(), nombre: d.nombre || "", areaBovino: Number(d.areaBovino) || 0,
-                     bovinos: Number(d.bovinos) || 0, fechaDato: d.fechaDato || hoyISO() };
-      if (reg) Object.assign(reg, fila); else db.cues.push(fila);
-      guardar(db);
-      return { status: "success" };
-    },
-    async estadoCue(cue) {
-      const db = cargar(); db.cues = db.cues || [];
-      const digitos = v => String(v || "").replace(/\D/g, "");
-      const igual = (a, b) => { a = digitos(a); b = digitos(b);
-        return a && b && (a === b || (a.length >= 6 && b.length >= 6 && (a.endsWith(b) || b.endsWith(a)))); };
-      const pf = s => { const m = String(s || "").match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-        return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null; };
-      const reg = db.cues.find(x => igual(x.cue, cue));
-      if (!reg) return { status: "sin_datos", cue: String(cue || "").trim() };
-      const factor = db.config.factorCarga || 1.5;
-      const umbral = db.config.umbralAlerta || 85;
-      const area = Number(reg.areaBovino) || 0;
-      const bovinos = Number(reg.bovinos) || 0;
-      const capacidad = Math.floor(area * factor);
-      const fBase = pf(reg.fechaDato);
-      let entregados = 0;
-      db.expedientes.forEach(e => {
-        if (e.estado !== "PAGADO" && e.estado !== "ENTREGADO") return;
-        const fAp = pf(e.fechaAprobacion) || pf(e.fecha);
-        if (fBase && fAp && fAp < fBase) return;
-        e.productores.forEach(p => { if (igual(p.cue, cue)) entregados += Number(p.cantidad) || 0; });
-      });
-      const estimado = bovinos + entregados;
-      const disponibles = capacidad - estimado;
-      const pct = capacidad > 0 ? Math.round(estimado * 100 / capacidad) : 0;
-      let estado = "DISPONIBLE";
-      if (capacidad <= 0) estado = "SIN_DATOS";
-      else if (disponibles <= 0) estado = "LLENO";
-      else if (pct >= umbral) estado = "CASI_LLENO";
-      const viejo = !fBase || (Date.now() - fBase.getTime()) > 60 * 24 * 3600 * 1000;
-      return { status: "ok", cue: String(reg.cue), nombre: reg.nombre || "", areaBovino: area, factor,
-               capacidad, bovinosIpsa: bovinos, fechaDato: reg.fechaDato, entregadosDespues: entregados,
-               estimado, disponibles, porcentaje: pct, estado, datoViejo: viejo };
-    },
-    async solicitarCue(cue, hab) {
-      const cache = await this.estadoCue(cue);
-      const jobId = "local-" + Math.random().toString(36).slice(2);
-      _colaLocal[jobId] = { tipo: "CUE", cue };
-      return { status: "ok", jobId, cache };
-    },
-    async solicitarCupa(cupa, hab) {
-      const jobId = "localc-" + Math.random().toString(36).slice(2);
-      _colaLocal[jobId] = { tipo: "CUPA", termino: cupa };
-      return { status: "ok", jobId };
-    },
-    async estadoPuente() { return { online: false, lastSeen: 0 }; },
-    async resultadoCue(jobId) {
-      const j = _colaLocal[jobId];
-      if (!j) return { status: "expirado" };
-      delete _colaLocal[jobId];
-      if (j.tipo === "CUPA") {
-        // Demo local: simula un productor con 2 fincas y su nombre. En REMOTO lo trae el bot del SNITB.
-        const prod = cargar().productores.find(p => p.cupa === String(j.termino || "").trim().toUpperCase());
-        const nombreProductor = prod ? prod.nombre : "PRODUCTOR DEMO LOCAL";
-        return { status: "listo", datos: { tipo: "CUPA", nombreProductor, lista: [
-          { cue: (prod && prod.cue) || "9316044757", nombre: "FINCA DEMO 1", bovinos: 20 },
-          { cue: "9316044999", nombre: "FINCA DEMO 2", bovinos: 5 }
-        ] } };
-      }
-      const datos = await this.estadoCue(j.cue);
-      datos.enVivo = true; datos.nombreProductor = "";
-      return { status: "listo", datos };
-    },
-    async trabajosPendientes() { return []; },
-    async entregarResultadoCue() { return { status: "success" }; },
-    // utilidades de prototipo local
-    _reset() { const db = datosSemilla(); guardar(db); return db; },
-    _dump() { return cargar(); }
+    }
   };
 
-  const Backend = MODO_REMOTO ? Remote : Local;
-  Backend.MODO = MODO_REMOTO ? "REMOTO (Google Sheets)" : "LOCAL (localStorage)";
   global.Backend = Backend;
-  console.log("AretesApp Backend en modo:", Backend.MODO);
+  console.log("Backend en modo: SUPABASE");
 })(window);

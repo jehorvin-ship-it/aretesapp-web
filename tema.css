@@ -1,0 +1,226 @@
+/* =====================================================================
+   AretesApp — Tema "Noche cian"  (v4)
+   La paleta original del sistema (azul noche + cian #00d2ff), llevada a
+   un acabado elegante: profundidad en capas, vidrio, brillos finos,
+   radios con jerarquía y estados claros. Un solo archivo para todo.
+   ===================================================================== */
+:root{
+  --primary:#00d2ff; --primary-d:#0891b2; --primary-s:rgba(0,210,255,.12);
+  --bg:#0b1120; --bg2:#101a30; --card:#18233a; --card2:#1f2c47;
+  --text:#f1f5f9; --muted:#9aa8bd; --line:rgba(255,255,255,.09);
+  --success:#10b981; --warn:#f59e0b; --danger:#ef4444;
+
+  --radio:22px; --radio-m:16px; --radio-s:13px;
+  --borde:rgba(148,178,214,.14);
+  --brillo-borde:inset 0 1px 0 rgba(255,255,255,.06);
+  --sombra:inset 0 1px 0 rgba(255,255,255,.06), 0 1px 2px rgba(0,0,0,.35),
+           0 14px 34px -14px rgba(0,0,0,.65), 0 30px 60px -40px rgba(0,210,255,.18);
+  --sombra-alta:inset 0 1px 0 rgba(255,255,255,.08), 0 2px 6px rgba(0,0,0,.4),
+           0 22px 44px -16px rgba(0,0,0,.7), 0 0 0 1px rgba(0,210,255,.22);
+  --brillo-cian:0 8px 22px -8px rgba(0,210,255,.6);
+  --suave:cubic-bezier(.2,.7,.2,1);
+  --letra:"Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --titulo:"Bricolage Grotesque", "Figtree", system-ui, sans-serif;
+}
+
+/* ---------- Base y fondo con aurora tenue ---------- */
+html,body{background-color:var(--bg) !important;}
+body{min-height:100vh;min-height:100dvh;
+  font-family:var(--letra) !important;color:var(--text) !important;-webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(900px 480px at 15% -120px, rgba(0,210,255,.13), transparent 65%),
+    radial-gradient(800px 460px at 100% 0%, rgba(99,102,241,.10), transparent 65%),
+    radial-gradient(700px 500px at 50% 110%, rgba(8,145,178,.10), transparent 70%),
+    linear-gradient(rgba(148,178,214,.035) 1px, transparent 1px) 0 0/32px 32px,
+    linear-gradient(90deg, rgba(148,178,214,.035) 1px, transparent 1px) 0 0/32px 32px,
+    var(--bg) !important;
+  background-attachment:fixed !important;
+}
+input,select,textarea,button{font-family:var(--letra);}
+h1,h2,h3{font-family:var(--titulo);letter-spacing:-.022em !important;}
+h1{color:var(--text) !important;font-weight:750 !important;}
+h1::after{content:"";display:block;width:42px;height:3px;border-radius:3px;margin:10px auto 0;
+  background:linear-gradient(90deg,var(--primary),rgba(0,210,255,0));}
+.subtitle,.sub,p.sub,.muted,.hint{color:var(--muted) !important;}
+::selection{background:rgba(0,210,255,.3);}
+:focus-visible{outline:2px solid var(--primary);outline-offset:3px;}
+@media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important;}}
+
+/* ---------- Tarjetas de vidrio ---------- */
+.card,.login-card,.login-box,.ipsa-card,.modal-content,.exp,.prod,.mov{
+  background:linear-gradient(180deg,rgba(30,43,68,.92) 0%,rgba(22,32,54,.92) 100%) !important;
+  border:1px solid var(--borde) !important;box-shadow:var(--sombra) !important;color:var(--text);
+  backdrop-filter:blur(10px);}
+.card,.login-card,.login-box,.modal-content{border-radius:var(--radio) !important;}
+.mov,.exp,.prod{border-radius:var(--radio-m) !important;transition:transform .2s var(--suave),box-shadow .2s var(--suave);}
+.mov:hover,.exp:hover,.prod:hover{transform:translateY(-1px);box-shadow:var(--sombra-alta) !important;}
+.exp-block,.ipsa-item,.arete,.dato{background:rgba(11,17,32,.55) !important;border:1px solid var(--borde) !important;
+  border-radius:var(--radio-m) !important;box-shadow:inset 0 1px 2px rgba(0,0,0,.25);}
+.arete,.dato,.ipsa-item{border-radius:12px !important;}
+.ipsa-item{border-left:3px solid var(--primary) !important;}
+.ipsa-item .v{color:var(--text) !important;}
+/* filete cian arriba de las tarjetas de acceso */
+.login-card,.login-box,#loginView .card{position:relative;overflow:hidden;}
+.login-card::before,.login-box::before,#loginView .card::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;
+  background:linear-gradient(90deg,transparent,var(--primary) 30%,#7dd3fc 60%,transparent);}
+
+/* ---------- Campos ---------- */
+input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea,.inp,.inp-sm{
+  background:rgba(8,13,26,.7) !important;color:var(--text) !important;border:1px solid rgba(148,178,214,.18) !important;
+  border-radius:var(--radio-s) !important;min-height:48px;padding-left:14px !important;padding-right:14px !important;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.35) !important;
+  transition:border-color .2s var(--suave),box-shadow .2s var(--suave),background .2s;}
+.inp-sm{min-height:40px;}
+input:hover:not(:focus):not([type=checkbox]),select:hover:not(:focus),textarea:hover:not(:focus){border-color:rgba(148,178,214,.32) !important;}
+input:focus,select:focus,textarea:focus,.inp:focus,.inp-sm:focus{outline:none !important;
+  border-color:var(--primary) !important;background:rgba(8,13,26,.9) !important;
+  box-shadow:0 0 0 1px var(--primary), 0 0 0 5px rgba(0,210,255,.14), 0 0 22px -4px rgba(0,210,255,.35) !important;}
+input::placeholder,textarea::placeholder{color:#5f6e86;}
+select{appearance:none;-webkit-appearance:none;padding-right:38px !important;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%2300d2ff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat:no-repeat !important;background-position:right 14px center !important;}
+select option{background:#101a30;color:var(--text);}
+label,.lbl,.field-lbl{color:var(--muted) !important;font-weight:600;font-size:.82rem !important;}
+input[type=checkbox]{accent-color:var(--primary);}
+
+/* ---------- Botones ---------- */
+.btn,.btn-primary,.seg button.on{
+  background:linear-gradient(180deg,#3fe0ff 0%,var(--primary) 45%,#00a9d4 100%) !important;color:#04202a !important;
+  border:none !important;font-weight:750 !important;border-radius:var(--radio-s) !important;letter-spacing:.005em;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.45), 0 1px 2px rgba(0,0,0,.4), var(--brillo-cian) !important;
+  transition:transform .15s var(--suave),box-shadow .2s var(--suave),filter .2s;}
+.btn:hover,.btn-primary:hover{filter:brightness(1.06);transform:translateY(-1px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5), 0 2px 4px rgba(0,0,0,.4), 0 14px 30px -8px rgba(0,210,255,.7) !important;}
+.btn:active,.btn-primary:active{transform:translateY(0) scale(.99);filter:brightness(.95);
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.3) !important;}
+.btn:disabled,.btn-primary:disabled{background:#2a3954 !important;color:#7a89a3 !important;box-shadow:none !important;transform:none;filter:none;cursor:not-allowed;}
+.btn-success{background:linear-gradient(180deg,#34d399,var(--success) 55%,#059669) !important;color:#022c1f !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 8px 20px -8px rgba(16,185,129,.6) !important;}
+.btn-ghost{background:rgba(0,210,255,.06) !important;color:var(--primary) !important;border:1px solid rgba(0,210,255,.35) !important;
+  box-shadow:var(--brillo-borde) !important;filter:none !important;}
+.btn-ghost:hover{background:rgba(0,210,255,.13) !important;border-color:var(--primary) !important;transform:translateY(-1px);
+  box-shadow:0 8px 18px -10px rgba(0,210,255,.6) !important;}
+.btn-sm{border-radius:10px !important;}
+
+/* ---------- Pestañas del panel: riel de vidrio ---------- */
+.tabs{background:rgba(15,23,42,.6);border:1px solid var(--borde);border-radius:22px !important;padding:6px;gap:4px !important;
+  width:fit-content;max-width:100%;margin-left:auto;margin-right:auto;backdrop-filter:blur(12px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 14px 30px -20px rgba(0,0,0,.8);}
+.tab-btn{background:transparent !important;border:1px solid transparent !important;color:var(--muted) !important;
+  border-radius:999px !important;font-weight:600 !important;padding:9px 16px 12px !important;transition:color .2s,background .2s var(--suave);}
+.tab-btn:hover{background:rgba(255,255,255,.05) !important;color:var(--text) !important;}
+.tab-btn.active{background:linear-gradient(180deg,rgba(0,210,255,.22),rgba(0,210,255,.10)) !important;color:#e6fbff !important;
+  border-color:rgba(0,210,255,.45) !important;position:relative;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 0 20px -6px rgba(0,210,255,.55) !important;}
+.tab-btn.active::after{content:"";position:absolute;left:50%;bottom:3px;width:16px;height:3px;margin-left:-8px;
+  border-radius:3px;background:var(--primary);box-shadow:0 0 8px var(--primary);}
+
+/* Selector segmentado (portal habilitado) */
+.seg{background:rgba(8,13,26,.55) !important;border:1px solid var(--borde) !important;border-radius:18px !important;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.35) !important;}
+.seg button{border-radius:13px !important;color:var(--muted);transition:background .2s,color .2s;}
+
+/* ---------- Tablas ---------- */
+table{border-collapse:separate !important;border-spacing:0 !important;border:1px solid var(--borde);
+  border-radius:var(--radio-m) !important;overflow:hidden;background:rgba(11,17,32,.35);}
+th{background:linear-gradient(180deg,rgba(0,210,255,.09),rgba(0,210,255,.03)) !important;color:#7dd3fc !important;
+  font-size:.74rem !important;letter-spacing:.04em;padding-top:12px !important;padding-bottom:12px !important;
+  border-bottom:1px solid var(--borde) !important;}
+td{border-bottom:1px solid rgba(148,178,214,.08) !important;}
+tr:last-child td{border-bottom:none !important;}
+tbody tr:nth-child(even) td{background:rgba(255,255,255,.018);}
+tr.clickable td{transition:background .15s;}
+tr.clickable:hover td{background:rgba(0,210,255,.07) !important;}
+.mono{color:#7dd3fc !important;font-family:ui-monospace,"Cascadia Mono",Consolas,monospace !important;}
+
+/* ---------- Avisos ---------- */
+.msg-ok,.msg-err,.msg-info,.msg-load{border-radius:var(--radio-s) !important;border-left-width:4px !important;backdrop-filter:blur(6px);}
+.msg-ok{background:rgba(16,185,129,.10) !important;color:#6ee7b7 !important;border:1px solid rgba(16,185,129,.28) !important;border-left-color:var(--success) !important;}
+.msg-err{background:rgba(239,68,68,.10) !important;color:#fca5a5 !important;border:1px solid rgba(239,68,68,.28) !important;border-left-color:var(--danger) !important;}
+.msg-info{background:rgba(0,210,255,.08) !important;color:#a5f3fc !important;border:1px solid rgba(0,210,255,.25) !important;border-left-color:var(--primary) !important;}
+.msg-load{border-left-color:var(--warn) !important;}
+
+/* ---------- Chips, etiquetas y estados ---------- */
+.chip{background:rgba(0,210,255,.08) !important;border:1px solid rgba(0,210,255,.25) !important;color:var(--text) !important;
+  border-radius:12px !important;}
+.chip b{color:var(--primary) !important;}
+.chip.sel{background:rgba(16,185,129,.14) !important;border-color:var(--success) !important;}
+.pill,.badge{display:inline-flex;align-items:center;gap:6px;font-weight:700 !important;border:1px solid rgba(255,255,255,.06);}
+.pill::before,.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 6px currentColor;flex:none;}
+.pill-puente{border-radius:999px !important;}
+.pp-ok{background:rgba(16,185,129,.14) !important;color:#6ee7b7 !important;box-shadow:inset 0 0 0 1px rgba(16,185,129,.35),0 0 14px -4px rgba(16,185,129,.6);}
+.pp-warn{background:rgba(245,158,11,.14) !important;color:#fcd34d !important;box-shadow:inset 0 0 0 1px rgba(245,158,11,.35);}
+.pp-off{background:rgba(255,255,255,.05) !important;color:var(--muted) !important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);}
+.copy{color:var(--primary) !important;}
+
+/* ---------- Barra superior del panel y barra de la app ---------- */
+.topbar,.appbar{background:rgba(15,23,42,.72) !important;backdrop-filter:saturate(1.4) blur(16px) !important;
+  border:1px solid var(--borde) !important;box-shadow:var(--sombra) !important;}
+.topbar{border-radius:999px !important;padding:8px 10px 8px 16px !important;}
+#loginDig{background:transparent !important;}
+.top{border-bottom:1px solid var(--borde) !important;}
+
+/* ---------- Barra inferior del celular: flotante ---------- */
+.bottomnav{left:12px !important;right:12px !important;bottom:12px !important;border-radius:22px !important;
+  background:rgba(15,23,42,.82) !important;backdrop-filter:saturate(1.5) blur(18px) !important;
+  border:1px solid var(--borde) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 18px 40px -12px rgba(0,0,0,.8) !important;
+  padding-bottom:calc(6px + env(safe-area-inset-bottom,0px)) !important;}
+.bottomnav button{color:var(--muted) !important;}
+.bottomnav button.on{color:var(--primary) !important;}
+.bottomnav button.on .bi{transform:translateY(-2px) scale(1.06) !important;filter:drop-shadow(0 0 8px rgba(0,210,255,.6));}
+.bottomnav button .dot{width:18px !important;height:4px !important;}
+.bottomnav button.on .dot{background:var(--primary) !important;box-shadow:0 0 8px var(--primary);}
+body:has(.bottomnav:not(.oculto)){padding-bottom:110px;}
+
+/* ---------- Ventanas emergentes ---------- */
+.modal-overlay{background:rgba(3,7,18,.7) !important;backdrop-filter:blur(8px) !important;}
+.modal-content{animation:entrar .28s var(--suave);}
+@keyframes entrar{from{opacity:0;transform:translateY(10px) scale(.98);}to{opacity:1;transform:none;}}
+
+/* ---------- Pasos del portal de movimientos ---------- */
+.paso .n{width:32px !important;height:32px !important;background:rgba(0,210,255,.12) !important;color:var(--primary) !important;
+  font-family:var(--titulo);box-shadow:0 0 0 1px rgba(0,210,255,.35), 0 0 16px -4px rgba(0,210,255,.5);}
+.paso.ok .n{background:var(--success) !important;color:#fff !important;box-shadow:0 0 0 4px rgba(16,185,129,.18);}
+.card.bloqueado{opacity:.5;filter:saturate(.5);}
+.icon-btn{background:rgba(255,255,255,.04) !important;color:var(--text) !important;border:1px solid var(--borde) !important;border-radius:12px !important;}
+.spin{border-color:rgba(0,210,255,.2) !important;border-top-color:var(--primary) !important;}
+
+/* ---------- Total del habilitado ---------- */
+.total-card{border-radius:var(--radio) !important;border:1px solid rgba(0,210,255,.25) !important;
+  background:linear-gradient(135deg,rgba(0,210,255,.16) 0%,rgba(8,145,178,.06) 60%,rgba(99,102,241,.08) 100%) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 16px 34px -18px rgba(0,210,255,.45);}
+.total-card .t-l small{text-transform:none !important;letter-spacing:0 !important;}
+.total-card .t-l b{color:var(--primary) !important;text-shadow:0 0 18px rgba(0,210,255,.35);}
+
+/* ---------- Inicio ---------- */
+a.card{background:linear-gradient(180deg,rgba(30,43,68,.9),rgba(22,32,54,.9)) !important;border:1px solid var(--borde) !important;
+  border-radius:24px !important;box-shadow:var(--sombra) !important;
+  transition:transform .25s var(--suave),box-shadow .25s var(--suave),border-color .2s !important;}
+a.card:hover{transform:translateY(-4px);box-shadow:var(--sombra-alta) !important;border-color:rgba(0,210,255,.4) !important;}
+a.card h2{color:var(--text) !important;font-family:var(--titulo);}
+a.card span{color:var(--muted) !important;}
+a.card .ico{display:inline-grid;place-items:center;width:64px;height:64px;border-radius:20px;
+  background:linear-gradient(160deg,rgba(0,210,255,.16),rgba(0,210,255,.04));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.1), 0 0 0 1px rgba(0,210,255,.2), 0 10px 22px -10px rgba(0,210,255,.5);}
+
+/* ---------- Logo: arete cian con agujero y 558 ---------- */
+.logo-badge{position:relative;border:none !important;border-radius:26px 26px 26px 10px !important;font-size:0 !important;
+  background:linear-gradient(155deg,#67e8f9 0%,var(--primary) 45%,var(--primary-d) 100%) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5), inset 0 -3px 0 rgba(0,0,0,.12),
+             0 0 0 6px rgba(0,210,255,.08), 0 16px 36px -10px rgba(0,210,255,.6) !important;}
+.logo-badge > *{display:none !important;}
+.logo-badge::before{content:"558";font:800 27px/1 var(--titulo);color:#04202a;letter-spacing:.02em;margin-top:8px;}
+.logo-badge::after{content:"";position:absolute;top:13px;right:15px;width:13px;height:13px;border-radius:50%;
+  background:var(--bg);box-shadow:inset 0 1px 2px rgba(0,0,0,.5);}
+.logo-wrap h1{font-size:1.7rem !important;}
+.logo-wrap p{color:var(--muted) !important;}
+.logo-wrap h1::after{display:none;}
+
+/* ---------- Barras de desplazamiento ---------- */
+*{scrollbar-width:thin;scrollbar-color:#2a3954 transparent;}
+::-webkit-scrollbar{width:9px;height:9px;}
+::-webkit-scrollbar-thumb{background:#2a3954;border-radius:9px;border:2px solid transparent;background-clip:padding-box;}
+
+/* Evita que al deslizar hacia abajo en el celular se recargue la página sin querer */
+html,body{overscroll-behavior-y:none;}
