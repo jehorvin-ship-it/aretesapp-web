@@ -43,8 +43,37 @@
   const tokM = () => { if (!tokenMov) throw new Error("Tu sesión venció. Vuelve a entrar."); return tokenMov; };
 
   /* ---------------- llamada RPC con manejo de errores ---------------- */
+  /* ---- Teléfono: llave secreta propia de este teléfono + su modelo ---- */
+  const LLAVE_KEY = "aretesapp_llave";
+  function llaveTelefono() {
+    let k = null;
+    try { k = localStorage.getItem(LLAVE_KEY); } catch (e) {}
+    if (!k || k.length < 32) {
+      const b = new Uint8Array(24); (global.crypto || {}).getRandomValues ? crypto.getRandomValues(b) : b.forEach((_, i) => b[i] = Math.random() * 256 | 0);
+      k = "tel-" + Array.from(b, x => x.toString(16).padStart(2, "0")).join("");
+      try { localStorage.setItem(LLAVE_KEY, k); } catch (e) {}
+    }
+    return k;
+  }
+  async function modeloTelefono() {
+    const ua = global.navigator ? navigator.userAgent : "";
+    let modelo = "", sistema = "";
+    try {
+      if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+        const v = await navigator.userAgentData.getHighEntropyValues(["model", "platform", "platformVersion"]);
+        modelo = v.model || ""; sistema = (v.platform || "") + (v.platformVersion ? " " + String(v.platformVersion).split(".")[0] : "");
+      }
+    } catch (e) {}
+    if (!modelo) { const m = ua.match(/Android [\d.]+; ([^;)]+)/); if (m && m[1] !== "K") modelo = m[1].replace(/ Build.*/, ""); }
+    if (!modelo && /iPhone/.test(ua)) modelo = "iPhone";
+    if (!modelo && /iPad/.test(ua)) modelo = "iPad";
+    if (!sistema) sistema = /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Windows/.test(ua) ? "Windows" : /Mac/.test(ua) ? "Mac" : "";
+    const nav = /Edg\//.test(ua) ? "Edge" : /SamsungBrowser/.test(ua) ? "Samsung Internet" : /Firefox/.test(ua) ? "Firefox" : /Chrome/.test(ua) ? "Chrome" : /Safari/.test(ua) ? "Safari" : "";
+    return [modelo || "Teléfono", sistema, nav].filter(Boolean).join(" · ");
+  }
+
   // Funciones que solo leen datos: se pueden repetir sin riesgo si la red falla un instante.
-  const SOLO_LECTURA = /^(hab_(expedientes|resultado|buscar_productor|disponible|config|cues|mis)|mov_(resultado|mis)|dig_(yo|pendientes|confirmados|cues|habilitados|bitacora|personal|movimientos)|get_config|estado_puente|puente_)/;
+  const SOLO_LECTURA = /^(hab_(expedientes|resultado|buscar_productor|disponible|config|cues|mis)|mov_(resultado|mis)|dig_(yo|pendientes|confirmados|cues|habilitados|bitacora|personal|movimientos|telefonos)|get_config|estado_puente|puente_)/;
   const esErrorDeRed = m => /Failed to fetch|NetworkError|Load failed|network|ERR_|fetch/i.test(m);
   const esErrorDeAuth = (e, m) => e.code === "42501" || e.code === "PGRST301" || e.code === "PGRST303" || /JWT|jwt expired|not authorized|Acceso solo para el digitador/i.test(m);
   const dormir = ms => new Promise(r => setTimeout(r, ms));
@@ -134,7 +163,8 @@
 
     /* ---- habilitado ---- */
     async login(numero, pin) {
-      const r = await rpc("hab_login", { p_numero: String(numero || "").trim(), p_pin: String(pin || "").trim() });
+      const r = await rpc("hab_login", { p_numero: String(numero || "").trim(), p_pin: String(pin || "").trim(),
+                                         p_llave: llaveTelefono(), p_modelo: await modeloTelefono() });
       if (r && r.status === "ok") { setToken(r.token); try { localStorage.setItem(HAB_INFO, JSON.stringify(r.habilitado || {})); } catch (e) {} }
       return r;
     },
@@ -182,6 +212,9 @@
     guardarHabilitado:        (d)    => rpc("dig_guardar_habilitado", { p: d }),
     bitacora:                 (n)    => rpc("dig_bitacora", { p_limite: n || 50 }),
     getPersonal:              ()     => rpc("dig_personal"),
+    getTelefonos:             ()     => rpc("dig_telefonos"),
+    telefonoAccion:           (id, a) => rpc("dig_telefono_accion", { p_id: id, p_accion: a }),
+    telefonosPendientes:      ()     => rpc("dig_telefonos_pendientes"),
     guardarPersonal:          (d)    => rpc("dig_guardar_personal", { p: d }),
     getMovimientos:           (estado, n) => rpc("dig_movimientos", { p_estado: estado || null, p_limite: n || 100 }),
     registroAuto:             (on)   => rpc("dig_registro_auto", { p_on: !!on }),
@@ -195,7 +228,8 @@
     /* ---- personal de movimientos ---- */
     mov: {
       async login(usuario, pass) {
-        const r = await rpc("mov_login", { p_usuario: String(usuario || "").trim(), p_pass: String(pass || "") });
+        const r = await rpc("mov_login", { p_usuario: String(usuario || "").trim(), p_pass: String(pass || ""),
+                                           p_llave: llaveTelefono(), p_modelo: await modeloTelefono() });
         if (r && r.status === "ok") { setTokenMov(r.token); try { localStorage.setItem("aretesapp_mov_user", JSON.stringify(r.usuario)); } catch (e) {} }
         return r;
       },
