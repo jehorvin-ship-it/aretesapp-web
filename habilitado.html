@@ -196,6 +196,23 @@
   .bottomnav button.on .bi{transform:translateY(-1px);}
   .bottomnav button .dot{width:34px;height:4px;border-radius:4px;background:transparent;margin-top:2px;}
   .bottomnav button.on .dot{background:var(--primary);}
+
+  .tel-espera{text-align:center;padding:18px 14px;border-radius:16px;border:1px solid rgba(0,210,255,.3);
+    background:linear-gradient(180deg,rgba(0,210,255,.10),rgba(0,210,255,.03));margin-top:6px}
+  .tel-espera .ic{font-size:2.2rem;line-height:1}
+  .tel-espera b.t{display:block;font-size:1.05rem;margin:8px 0 4px}
+  .tel-espera .cod{font:800 2.4rem/1 ui-monospace,Consolas,monospace;letter-spacing:.35em;color:var(--primary);
+    margin:14px 0 6px;padding-left:.35em;text-shadow:0 0 18px rgba(0,210,255,.4)}
+  .tel-espera small{color:var(--muted);display:block;line-height:1.5}
+  .tel-espera .esperando{margin-top:12px;font-size:.85rem;color:var(--muted)}
+
+  .lookup.arr{display:block}
+  .arr-box{margin-top:8px;padding:12px 14px;border-radius:14px;border:1px solid rgba(245,158,11,.4);border-left:4px solid var(--warn);
+    background:linear-gradient(180deg,rgba(245,158,11,.12),rgba(245,158,11,.04));line-height:1.45}
+  .arr-box b{color:var(--text)} .arr-box > b:first-child{display:block;color:#6ee7b7;font-size:1rem;margin-bottom:4px}
+  .arr-box span{display:block;color:#fcd34d;font-size:.88rem}
+  .arr-box .arr-paso{color:var(--text);margin-top:6px}
+  .prod input.p-cue.cue-manual:not([type=checkbox]):not([type=radio]):not([type=file]){border-color:var(--warn) !important;box-shadow:0 0 0 1px var(--warn),0 0 0 5px rgba(245,158,11,.15) !important}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -320,7 +337,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js"></script>
 <script src="config.js?v=10"></script>
-<script src="backend.js?v=13"></script>
+<script src="backend.js?v=15"></script>
 <script>
   /* ---- Bloqueo de zoom ----
      El pellizco queda bloqueado por el viewport (user-scalable=no) y el
@@ -359,10 +376,40 @@
     btn.disabled = true; msg.innerHTML='<div class="msg msg-load">Conectando…</div>';
     try{
       const res = await Backend.login(num, pin);
+      if(res.status === 'telefono_pendiente' || res.status === 'telefono_rechazado'){
+        btn.disabled=false;
+        mostrarEsperaTelefono(msg, res, async ()=>{ const r2 = await Backend.login(num, pin); if(r2.status==='ok'){ setTimeout(()=>{ msg.innerHTML=''; abrirApp(r2.habilitado); }, 900); } return r2; });
+        return;
+      }
       if(res.status !== 'ok'){ msg.innerHTML='<div class="msg msg-err">'+res.message+'</div>'; btn.disabled=false; return; }
       msg.innerHTML='';
       await abrirApp(res.habilitado);
     }catch(e){ msg.innerHTML='<div class="msg msg-err">Error de conexión. Revisa tu internet.</div>'; btn.disabled=false; }
+  }
+
+  const esc = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+  /* ---------- teléfono en espera de autorización del digitador ---------- */
+  let timerTel = null;
+  function mostrarEsperaTelefono(caja, r, reintentar){
+    clearTimeout(timerTel);
+    if (r.status === 'telefono_rechazado') {
+      caja.innerHTML = '<div class="msg msg-err">🚫 ' + esc(r.message) + '</div>'; return; }
+    caja.innerHTML = `<div class="tel-espera"><div class="ic">📱</div>
+      <b class="t">Este teléfono necesita autorización</b>
+      <small>Por seguridad, cada persona solo puede usar la app en <b>un teléfono</b>.<br>Comunícate con el digitador y dile este código:</small>
+      <div class="cod">${esc(r.codigo || '----')}</div>
+      <small>Cuando el digitador lo autorice, entrarás solo. No cierres esta pantalla.</small>
+      <div class="esperando"><span class="spin"></span>Esperando autorización…</div></div>`;
+    let vueltas = 0;
+    const revisar = async () => {
+      if (++vueltas > 300) { caja.innerHTML = '<div class="msg msg-info">Se dejó de esperar. Vuelve a pulsar Entrar cuando el digitador te autorice.</div>'; return; }
+      let r2; try { r2 = await reintentar(); } catch (e) { timerTel = setTimeout(revisar, 8000); return; }
+      if (r2.status === 'ok') { caja.innerHTML = '<div class="msg msg-ok">✅ Teléfono autorizado. Entrando…</div>'; return; }
+      if (r2.status === 'telefono_pendiente') { timerTel = setTimeout(revisar, 6000); return; }
+      if (r2.status === 'telefono_rechazado') { mostrarEsperaTelefono(caja, r2, reintentar); return; }
+      caja.innerHTML = '<div class="msg msg-err">' + esc(r2.message || 'No se pudo entrar') + '</div>';
+    };
+    timerTel = setTimeout(revisar, 6000);
   }
   async function abrirApp(h){
     habilitadoActual = h;
@@ -691,7 +738,21 @@
     const lista=datos.lista||[];
     const nombreSNITB=(datos.nombreProductor||'').trim();
     if(nombreSNITB) card.querySelector('.p-nombre').value=nombreSNITB;  // el CUPA identifica a la persona (mismo nombre para todas sus fincas)
-    if(lista.length===0){ look.className='lookup'; look.innerHTML='<span style="color:#fca5a5">✗ CUPA no encontrado en el SNITB. Verifica el código.</span>'; return; }
+    if(lista.length===0){
+      const cueInp=card.querySelector('.p-cue');
+      if(nombreSNITB || datos.arrendatario){
+        // Inscrito en el SNITB pero SIN establecimiento propio: es arrendatario (usa un CUE prestado o alquilado)
+        look.className='lookup arr';
+        look.innerHTML='<div class="arr-box"><b>✓ '+esc(nombreSNITB||'Productor')+'</b>'
+          +'<span>Está inscrito en el SNITB como <b>ARRENDATARIO</b>: no tiene código de establecimiento propio.</span>'
+          +'<span class="arr-paso">✍️ Escribe a mano el <b>CUE</b> del establecimiento donde se van a aretear los animales (el del dueño que le presta o alquila).</span></div>';
+        if(cueInp){ cueInp.value=''; cueInp.classList.add('cue-manual'); cueInp.placeholder='CUE del establecimiento';
+          setTimeout(()=>{ try{ cueInp.focus(); cueInp.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){} }, 150); }
+        return;
+      }
+      if(cueInp) cueInp.classList.remove('cue-manual');
+      look.className='lookup'; look.innerHTML='<span style="color:#fca5a5">✗ Este CUPA no existe en el SNITB. Verifica el código.</span>'; return; }
+    { const ci=card.querySelector('.p-cue'); if(ci) ci.classList.remove('cue-manual'); }
     if(lista.length===1){ aplicarFinca(card, lista[0], datos.semaforo); return; }
     look.className='lookup'; look.innerHTML='<span style="color:#6ee7b7">✓ CUPA válido'+(nombreSNITB?(' — '+nombreSNITB):'')+'</span> — este productor tiene '+lista.length+' establecimientos. Elige a cuál van los aretes:';
     card._fincas=lista;
