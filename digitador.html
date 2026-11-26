@@ -97,6 +97,22 @@
     #tab-personal > div:first-of-type > div{flex:1 1 45%;}
     #tab-cues > div:first-of-type > div{flex:1 1 45%;}
   }
+
+  .tel-badge{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;margin-left:6px;border-radius:10px;
+    background:var(--danger);color:#fff;font-size:.72rem;font-weight:800;box-shadow:0 0 10px rgba(239,68,68,.6);animation:latido 1.6s infinite}
+  .tel-badge.oculto{display:none}
+  @keyframes latido{50%{transform:scale(1.15)}}
+  .tel-h{font-size:.95rem;margin:22px 0 10px;color:var(--text)}
+  .tel{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:14px 16px;margin-bottom:10px;border-radius:16px;
+    border:1px solid var(--borde,rgba(255,255,255,.1));background:rgba(11,17,32,.5)}
+  .tel.pend{border-color:rgba(245,158,11,.45);background:linear-gradient(180deg,rgba(245,158,11,.10),rgba(245,158,11,.03))}
+  .tel .q{flex:1;min-width:220px} .tel .q b{font-size:1rem} .tel .q small{display:block;color:var(--muted);margin-top:3px;line-height:1.45}
+  .tel .cod{font:800 1.6rem/1 ui-monospace,Consolas,monospace;letter-spacing:.25em;color:var(--warn);padding:6px 12px;border-radius:12px;
+    background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.35)}
+  .tel .acc{display:flex;gap:8px;flex-wrap:wrap}
+  .tel .tipo{display:inline-block;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:8px;margin-right:6px;vertical-align:2px;
+    background:rgba(0,210,255,.12);color:var(--primary)}
+  .tel .aviso{color:#fcd34d;font-size:.82rem;margin-top:6px}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -132,6 +148,7 @@
     <button class="tab-btn" onclick="switchTab('movimientos',this)">Movimientos</button>
     <button class="tab-btn" onclick="switchTab('habilitados',this)">Habilitados</button>
     <button class="tab-btn" onclick="switchTab('personal',this)">Personal</button>
+    <button class="tab-btn" id="btnTabTel" onclick="switchTab('telefonos',this)">Teléfonos <span id="telBadge" class="tel-badge oculto">0</span></button>
     <button class="tab-btn" onclick="switchTab('puente',this)">Puente SNITB</button>
     <button class="tab-btn" onclick="switchTab('config',this)">Configuración</button>
   </div>
@@ -269,6 +286,19 @@
   </div>
 
   <!-- PUENTE -->
+  <div id="tab-telefonos" class="card">
+    <p style="text-align:center;color:var(--muted);font-size:.85rem;margin-top:0">
+      Cada habilitado y cada digitador de movimientos solo puede usar <b>un teléfono</b>. Cuando alguien entra desde un teléfono nuevo,
+      aparece aquí esperando tu aprobación. <b>Revisa que el código sea el mismo que la persona ve en su pantalla.</b></p>
+    <div id="telMsg"></div>
+    <h3 class="tel-h">⏳ Esperando aprobación</h3>
+    <div id="telPend"><div class="hint" style="text-align:center">Cargando…</div></div>
+    <h3 class="tel-h">✅ Teléfonos autorizados</h3>
+    <div id="telAut"></div>
+    <h3 class="tel-h" id="telRechH">🚫 Rechazados</h3>
+    <div id="telRech"></div>
+  </div>
+
   <div id="tab-puente" class="card">
     <div id="puenteDetalle" style="text-align:center;margin-bottom:14px"></div>
     <p style="text-align:center;color:var(--muted);font-size:.8rem;margin-top:0">Últimas consultas que hicieron los habilitados al SNITB a través del puente.</p>
@@ -280,7 +310,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js"></script>
 <script src="config.js?v=10"></script>
-<script src="backend.js?v=13"></script>
+<script src="backend.js?v=15"></script>
 <script>
   /* ---- Bloqueo de zoom (viewport + touch-action lo hacen; gesture* refuerza iOS) ---- */
   document.addEventListener('gesturestart', e=>e.preventDefault());
@@ -299,6 +329,7 @@
     if(tab==='habilitados') cargarHabs();
     if(tab==='movimientos') cargarMovs();
     if(tab==='personal') cargarPersonal();
+    if(tab==='telefonos') cargarTelefonos();
     if(tab==='puente') cargarPuente();
   }
 
@@ -574,6 +605,8 @@
     try{ document.getElementById('digCorreo').textContent = await Backend.correoDigitador(); }catch(e){}
     cargarPendientes(); pintarPuente();
     if(!puenteTimer) puenteTimer=setInterval(pintarPuente, 20000);
+    revisarTelefonos(); if(!window._telTimer) window._telTimer=setInterval(revisarTelefonos, 20000);
+    try{ if(window.Notification && Notification.permission==='default') Notification.requestPermission(); }catch(e){}
   }
 
   /* ---------- v2: ESTADO DEL PUENTE ---------- */
@@ -645,6 +678,60 @@
     }catch(e){ msg.innerHTML='<div class="msg msg-err">'+esc(e.message)+'</div>'; }
   }
 
+
+  /* ---------- v2: TELÉFONOS AUTORIZADOS ---------- */
+  let cacheTel = [];
+  async function cargarTelefonos(){
+    let l; try { l = await Backend.getTelefonos(); } catch(e){ document.getElementById('telPend').innerHTML='<div class="msg msg-err">'+esc(e.message)+'</div>'; return; }
+    cacheTel = l; pintarBadgeTel(l.filter(t=>t.estado==='PENDIENTE').length);
+    const quien = t => `<span class="tipo">${t.tipo==='HAB'?'Habilitado':'Movimientos'}</span><b>${esc(t.nombre||t.cuenta)}</b>
+        <small>${t.tipo==='HAB'?'N° ':'Usuario: '}${esc(t.cuenta)} · 📱 ${esc(t.modelo||'Teléfono')}</small>`;
+    const pend = l.filter(t=>t.estado==='PENDIENTE'), aut = l.filter(t=>t.estado==='AUTORIZADO'), rech = l.filter(t=>t.estado==='RECHAZADO');
+    document.getElementById('telPend').innerHTML = pend.length ? pend.map(t=>`<div class="tel pend">
+        <div class="q">${quien(t)}<small>Pidió entrar: ${esc(t.creado)}</small>
+          ${t.otroTelefono?'<div class="aviso">⚠️ Esta persona ya tiene otro teléfono autorizado. Si apruebas este, el anterior queda bloqueado.</div>':''}</div>
+        <div class="cod" title="Debe coincidir con el de su pantalla">${esc(t.codigo)}</div>
+        <div class="acc"><button class="btn btn-sm btn-success" onclick="accionTel(${t.id},'AUTORIZAR')">✅ Autorizar</button>
+          <button class="btn btn-sm btn-ghost" onclick="accionTel(${t.id},'RECHAZAR')">🚫 Rechazar</button></div></div>`).join('')
+      : '<div class="hint" style="text-align:center">No hay teléfonos esperando.</div>';
+    document.getElementById('telAut').innerHTML = aut.length ? aut.map(t=>`<div class="tel">
+        <div class="q">${quien(t)}<small>Autorizado: ${esc(t.autorizado||'-')} · Último uso: ${esc(t.ultimoUso||'-')}</small></div>
+        <div class="acc"><button class="btn btn-sm btn-ghost" onclick="accionTel(${t.id},'QUITAR')">Quitar teléfono</button></div></div>`).join('')
+      : '<div class="hint" style="text-align:center">Todavía no has autorizado ningún teléfono.</div>';
+    document.getElementById('telRechH').style.display = rech.length ? '' : 'none';
+    document.getElementById('telRech').innerHTML = rech.map(t=>`<div class="tel">
+        <div class="q">${quien(t)}<small>Pidió entrar: ${esc(t.creado)}</small></div>
+        <div class="acc"><button class="btn btn-sm btn-ghost" onclick="accionTel(${t.id},'AUTORIZAR')">Autorizar</button>
+          <button class="btn btn-sm btn-ghost" onclick="accionTel(${t.id},'QUITAR')">Borrar</button></div></div>`).join('');
+  }
+  async function accionTel(id, acc){
+    const t = cacheTel.find(x=>x.id===id); if(!t) return;
+    const nom = (t.nombre||t.cuenta) + ' (' + (t.modelo||'teléfono') + ')';
+    const preg = { AUTORIZAR: '¿Autorizar el teléfono de ' + nom + '?\n\nRevisa que el código ' + t.codigo + ' sea el mismo que ve la persona.' + (t.otroTelefono ? '\n\nSu teléfono anterior quedará bloqueado.' : ''),
+                   RECHAZAR: '¿Rechazar el teléfono de ' + nom + '?\nNo podrá entrar desde ese teléfono.',
+                   QUITAR: '¿Quitar el teléfono de ' + nom + '?\nSe le cerrará la sesión ahora mismo y tendrá que pedir autorización otra vez.' }[acc];
+    if(!confirm(preg)) return;
+    const msg = document.getElementById('telMsg');
+    try{
+      const r = await Backend.telefonoAccion(id, acc);
+      msg.innerHTML = r.status==='success' ? '<div class="msg msg-ok">✅ Listo.</div>' : '<div class="msg msg-err">'+esc(r.message)+'</div>';
+      setTimeout(()=>{ msg.innerHTML=''; }, 2500);
+    }catch(e){ msg.innerHTML='<div class="msg msg-err">'+esc(e.message)+'</div>'; }
+    cargarTelefonos();
+  }
+  let telAntes = 0;
+  function pintarBadgeTel(n){
+    const b = document.getElementById('telBadge'); if(!b) return;
+    b.textContent = n; b.classList.toggle('oculto', !n);
+    if(n > telAntes){
+      document.title = '(' + n + ') 📱 Teléfono por autorizar';
+      try{ if(window.Notification && Notification.permission==='granted') new Notification('📱 Teléfono esperando autorización', { body: 'Hay ' + n + ' teléfono(s) esperando tu aprobación.' }); }catch(e){}
+      if(document.getElementById('tab-telefonos').classList.contains('active')) cargarTelefonos();
+    } else if(!n) document.title = document.title.replace(/^\(\d+\) 📱 Teléfono por autorizar/, 'Panel Digitador - AretesApp');
+    telAntes = n;
+  }
+  async function revisarTelefonos(){ try{ pintarBadgeTel(await Backend.telefonosPendientes()); }catch(e){} }
+
   /* ---------- v2: MOVIMIENTOS ---------- */
   const MOV_EST = { PENDIENTE:['En cola','var(--warn)'], REGISTRANDO:['Registrando…','var(--primary)'], REGISTRADO:['Registrado','var(--success)'], ERROR:['Con error','var(--danger)'], ANULADO:['Anulado','var(--muted)'] };
   async function pintarAuto(){ try{ const c=await Backend.getConfig(); autoChk.checked=!!c.registroAuto; autoTxt.textContent=c.registroAuto?'Activado':'Apagado'; }catch(e){} }
@@ -659,7 +746,7 @@
     catch(e){ cont.innerHTML='<div class="msg msg-err">'+esc(e.message)+'</div>'; return; }
     if(!cacheMovs.length){ cont.innerHTML='<p style="text-align:center;color:var(--muted)">No hay movimientos en esta lista.</p>'; return; }
     cont.innerHTML = cacheMovs.map((m,i)=>{ const e=MOV_EST[m.estado]||[m.estado,'#fff']; return `<div class="exp-block">
-      <div class="exp-head"><div><b>CV ${esc(m.nodoc)}</b>${m.repetida?' <span class="badge" style="color:var(--warn);border:1px solid var(--warn)">carta repetida · aretes que faltaron</span>':''} <span class="hint">#${m.id} · ${esc(m.fecha)} · por ${esc(m.usuarioNombre||m.usuario)}</span></div>
+      <div class="exp-head"><div><b>CV ${esc(m.nodoc)}</b>${m.repetida?' <span class="badge" style="color:var(--warn);border:1px solid var(--warn)">carta repetida · aretes que faltaron</span>':''} <span class="hint">#${m.id} · ${esc(m.fecha)} · por ${esc(m.usuarioNombre||m.usuario)}${m.telefono?' · 📱 '+esc(m.telefono):''}</span></div>
         <span class="badge" style="color:${e[1]};border:1px solid ${e[1]}">${e[0]}</span></div>
       <div class="ipsa-grid">
         <div><span class="hint">Origen</span><br><b>${esc(m.nombreOrigen)}</b><br><span class="mono">${esc(m.cupaOrigen)}</span><br>${esc(m.fincaOrigen)} · <span class="mono">${esc(m.cueOrigen)}</span></div>
