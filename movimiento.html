@@ -94,6 +94,15 @@
                     align-items:center;justify-content:center;gap:4px;font-size:.8rem;font-weight:700;}
   .bottomnav button .bi{font-size:1.5rem;line-height:1;}
   .bottomnav button.on{color:var(--primary);}
+
+  .tel-espera{text-align:center;padding:18px 14px;border-radius:16px;border:1px solid rgba(0,210,255,.3);
+    background:linear-gradient(180deg,rgba(0,210,255,.10),rgba(0,210,255,.03));margin-top:6px}
+  .tel-espera .ic{font-size:2.2rem;line-height:1}
+  .tel-espera b.t{display:block;font-size:1.05rem;margin:8px 0 4px}
+  .tel-espera .cod{font:800 2.4rem/1 ui-monospace,Consolas,monospace;letter-spacing:.35em;color:var(--primary);
+    margin:14px 0 6px;padding-left:.35em;text-shadow:0 0 18px rgba(0,210,255,.4)}
+  .tel-espera small{color:var(--muted);display:block;line-height:1.5}
+  .tel-espera .esperando{margin-top:12px;font-size:.85rem;color:var(--muted)}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -185,7 +194,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js"></script>
 <script src="config.js?v=10"></script>
-<script src="backend.js?v=13"></script>
+<script src="backend.js?v=15"></script>
 <script>
   const $ = id => document.getElementById(id);
   const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -195,11 +204,42 @@
   async function entrar(){
     const btn = $('btnEntrar'); btn.disabled = true; $('loginMsg').innerHTML = '';
     try {
-      const r = await Backend.mov.login($('inUsuario').value, $('inPass').value);
+      const usr = $('inUsuario').value, pw = $('inPass').value;
+      const r = await Backend.mov.login(usr, pw);
+      if (r.status === 'telefono_pendiente' || r.status === 'telefono_rechazado') {
+        btn.disabled = false;
+        mostrarEsperaTelefono($('loginMsg'), r, async () => { const r2 = await Backend.mov.login(usr, pw);
+          if (r2.status === 'ok') setTimeout(() => { $('loginMsg').innerHTML = ''; abrirApp(r2.usuario); recuperarBorrador(); }, 900); return r2; });
+        return;
+      }
       if (r.status !== 'ok') { $('loginMsg').innerHTML = '<div class="msg msg-err">' + esc(r.message) + '</div>'; btn.disabled = false; return; }
       abrirApp(r.usuario); recuperarBorrador();
     } catch (e) { $('loginMsg').innerHTML = '<div class="msg msg-err">Error de conexión. Revisa tu internet.</div>'; }
     btn.disabled = false;
+  }
+
+  /* ---------- teléfono en espera de autorización del digitador ---------- */
+  let timerTel = null;
+  function mostrarEsperaTelefono(caja, r, reintentar){
+    clearTimeout(timerTel);
+    if (r.status === 'telefono_rechazado') {
+      caja.innerHTML = '<div class="msg msg-err">🚫 ' + esc(r.message) + '</div>'; return; }
+    caja.innerHTML = `<div class="tel-espera"><div class="ic">📱</div>
+      <b class="t">Este teléfono necesita autorización</b>
+      <small>Por seguridad, cada persona solo puede usar la app en <b>un teléfono</b>.<br>Comunícate con el digitador y dile este código:</small>
+      <div class="cod">${esc(r.codigo || '----')}</div>
+      <small>Cuando el digitador lo autorice, entrarás solo. No cierres esta pantalla.</small>
+      <div class="esperando"><span class="spin"></span>Esperando autorización…</div></div>`;
+    let vueltas = 0;
+    const revisar = async () => {
+      if (++vueltas > 300) { caja.innerHTML = '<div class="msg msg-info">Se dejó de esperar. Vuelve a pulsar Entrar cuando el digitador te autorice.</div>'; return; }
+      let r2; try { r2 = await reintentar(); } catch (e) { timerTel = setTimeout(revisar, 8000); return; }
+      if (r2.status === 'ok') { caja.innerHTML = '<div class="msg msg-ok">✅ Teléfono autorizado. Entrando…</div>'; return; }
+      if (r2.status === 'telefono_pendiente') { timerTel = setTimeout(revisar, 6000); return; }
+      if (r2.status === 'telefono_rechazado') { mostrarEsperaTelefono(caja, r2, reintentar); return; }
+      caja.innerHTML = '<div class="msg msg-err">' + esc(r2.message || 'No se pudo entrar') + '</div>';
+    };
+    timerTel = setTimeout(revisar, 6000);
   }
   function abrirApp(u){
     $('loginView').classList.add('oculto'); $('appView').classList.remove('oculto'); $('nav').classList.remove('oculto');
@@ -290,7 +330,17 @@
     if (r.status !== 'listo') { res.innerHTML = '<div class="msg msg-err">' + (r.status === 'timeout' ? 'El SNITB no respondió a tiempo.' : esc(r.message || 'No se pudo consultar')) + '</div>'; return; }
     const lista = (r.datos.lista || []).filter(f => !origen || f.cue !== origen.cue);
     const nombre = r.datos.nombreProductor || '';
-    if (!lista.length) { res.innerHTML = '<div class="msg msg-err">Ese CUPA no tiene fincas registradas en el SNITB (o solo tiene la misma finca de origen).</div>'; return; }
+    if (!lista.length) {
+      const todas = r.datos.lista || [];
+      if (!todas.length && nombre) {
+        res.innerHTML = '<div class="msg msg-err"><b>' + esc(nombre) + '</b> está inscrito en el SNITB como <b>arrendatario</b>: no tiene finca propia, '
+          + 'así que no puede recibir ganado a su nombre.<br>Usa el CUPA del <b>dueño de la finca</b> a donde van los animales.</div>';
+      } else if (!todas.length) {
+        res.innerHTML = '<div class="msg msg-err">Ese CUPA no existe en el SNITB. Verifica el código.</div>';
+      } else {
+        res.innerHTML = '<div class="msg msg-err">Ese CUPA solo tiene la misma finca de origen. Elige otro comprador.</div>';
+      }
+      return; }
     window._fincas = lista.map(f => ({ ...f, cupa, nombreProd: nombre }));
     res.innerHTML = (nombre ? '<div class="dato" style="margin-top:12px"><span>Comprador</span><span>' + esc(nombre) + '</span></div>' : '')
       + '<div class="lbl" style="margin-top:12px">' + (lista.length === 1 ? 'Finca de destino:' : 'Toca la finca de destino:') + '</div>'
